@@ -9,32 +9,38 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Lazy<E> {
 
-    private Callable<E> provider;
+    private final Callable<E> provider;
     private final Lock monitor = new ReentrantLock();
     private final Condition condition = monitor.newCondition();
-    private E value = null;
+    private Optional<E> value = Optional.empty();
 
     public Lazy(Callable<E> provider) {
-        try {
-            this.value = provider.call();
-        } catch (Exception e) {
-            System.out.println("value hasn't been calculated");
-        }
+        this.provider = provider;
     }
 
-    public Optional<E> get(long timeout) throws InterruptedException {
+    public Optional<E> get(long timeout) throws Exception {
+
+        // easy path
+        if (value.isPresent()) {
+            return value;
+        }
+
         monitor.lock();
         try {
-            if (value != null) {
-                return Optional.of(value);
-            }
+
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
                 return Optional.empty();
             }
+
             // prepare wait
             long start = Timeouts.start(timeout);
             long remaining = Timeouts.remaining(start);
+
+            // calculate value
+            if (value.isEmpty() && !Timeouts.isTimeout(remaining)) {
+                getValue();
+            }
 
             while (true) {
                 try {
@@ -45,11 +51,13 @@ public class Lazy<E> {
                 }
 
                 remaining = Timeouts.remaining(start);
-                if(Timeouts.isTimeout(remaining)) {
+                if (Timeouts.isTimeout(remaining)) {
                     return Optional.empty();
                 }
 
-                return value != null ? Optional.of(value) : getValue();
+                if (value.isPresent()) {
+                    return value;
+                }
             }
 
         } finally {
@@ -57,18 +65,21 @@ public class Lazy<E> {
         }
     }
 
-    private Optional<E> getValue() {
+    private void getValue() throws Exception {
+
+        if (value.isPresent()) {
+            return;
+        }
+
+        Optional<E> calculatedValue = Optional.of(provider.call());
+
         monitor.lock();
         try {
-            this.value = provider.call();
-            condition.signal();
-            return Optional.of(value);
-        } catch (Exception e) {
-            e.printStackTrace();
+            this.value = calculatedValue;
+            condition.signalAll();
         } finally {
             monitor.unlock();
         }
-        return Optional.empty();
     }
 
 }
