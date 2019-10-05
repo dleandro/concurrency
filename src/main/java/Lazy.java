@@ -1,11 +1,13 @@
 import utils.Timeouts;
 
+import java.sql.SQLOutput;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.jar.JarOutputStream;
 
 public class Lazy<E> {
 
@@ -19,14 +21,14 @@ public class Lazy<E> {
     }
 
     public Optional<E> get(long timeout) throws Exception {
-
-        // easy path
-        if (value.isPresent()) {
-            return value;
-        }
-
         monitor.lock();
+
         try {
+
+            // easy path
+            if (value.isPresent()) {
+                return value;
+            }
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
@@ -37,46 +39,54 @@ public class Lazy<E> {
             long start = Timeouts.start(timeout);
             long remaining = Timeouts.remaining(start);
 
-            // calculate value
-            if (value.isEmpty() && !Timeouts.isTimeout(remaining)) {
-                getValue();
-            }
-
             while (true) {
-                try {
+                monitor.unlock();
+
+                // calculate value
+                if (getValue() == Optional.empty()) {
                     condition.await(remaining, TimeUnit.MILLISECONDS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw e;
                 }
 
+                monitor.lock();
+                // check if timeout has ended
                 remaining = Timeouts.remaining(start);
                 if (Timeouts.isTimeout(remaining)) {
                     return Optional.empty();
                 }
 
+                // hardest path
                 if (value.isPresent()) {
                     return value;
                 }
             }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
 
         } finally {
             monitor.unlock();
         }
     }
 
-    private void getValue() throws Exception {
 
+    private Optional<E> getValue() throws Exception {
+
+        // Means that value has been calculated and it's time to wait and return
         if (value.isPresent()) {
-            return;
+            return Optional.empty();
         }
 
         Optional<E> calculatedValue = Optional.of(provider.call());
 
         monitor.lock();
         try {
-            this.value = calculatedValue;
+            if(!value.isPresent())
+            {
+                this.value = calculatedValue;
+            }
             condition.signalAll();
+            return value;
         } finally {
             monitor.unlock();
         }
