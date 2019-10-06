@@ -1,6 +1,5 @@
 import utils.Timeouts;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -29,7 +28,7 @@ public class KeyedExchanger<T> {
         try {
 
             // is data waiting to be returned by the pair thread
-            if (completeRequests(key, mydata)) return (Optional<T>) Optional.of(requestsList.get(key).data);
+            if (requestCompleted(key, mydata)) return (Optional<T>) Optional.of(requestsList.get(key).data);
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
@@ -43,13 +42,14 @@ public class KeyedExchanger<T> {
             while (true) {
 
                 // is the data still not there?
-                if (completeRequests(key, mydata)) return (Optional<T>) Optional.of(requestsList.get(key).data);
+                if (requestCompleted(key, mydata)) return (Optional<T>) Optional.of(requestsList.get(key).data);
 
                 // if the thread got to this point it means that the pair thread didn't put the data in the map yet
                 // so it's time to wait
                 requestsList.put(key, new Request(mydata));
                 condition.await(remaining, TimeUnit.MILLISECONDS);
 
+                remaining = Timeouts.remaining(start);
                 if (Timeouts.isTimeout(remaining)) {
                     return Optional.empty();
                 }
@@ -68,7 +68,7 @@ public class KeyedExchanger<T> {
         }
     }
 
-    private boolean completeRequests(int key, T mydata) {
+    private boolean requestCompleted(int key, T mydata) {
         if (requestsList.get(key) != null) {
             // add to the list the new data to be exchanged
             requestsList.put(key, new Request(mydata));
