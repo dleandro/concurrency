@@ -34,6 +34,12 @@ public class TransferQueue<E> {
         try {
             NodeLinkedList.Node<Request> node = queue.push(new Request<>(message, monitor));
 
+            // check if the value has been consumed, if so the transfer was executed succesfully
+            if (node.value.isDone) {
+                queue.remove(node);
+                return true;
+            }
+
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
                 queue.remove(node);
@@ -46,26 +52,30 @@ public class TransferQueue<E> {
 
             while (true) {
 
-                node.value.condition.await(remaining, TimeUnit.MILLISECONDS);
+                try {
 
-                // check if timeout has ended
-                remaining = Timeouts.remaining(start);
-                if (Timeouts.isTimeout(remaining)) {
-                    queue.remove(node);
-                    return false;
+                    node.value.condition.await(remaining, TimeUnit.MILLISECONDS);
+
+                    // check if timeout has ended
+                    remaining = Timeouts.remaining(start);
+                    if (Timeouts.isTimeout(remaining)) {
+                        queue.remove(node);
+                        return false;
+                    }
+
+                    // check if the value has been consumed, if so the transfer was executed succesfully
+                    if (node.value.isDone) {
+                        queue.remove(node);
+                        return true;
+                    }
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw e;
                 }
 
-                // check if the value has been consumed, if so the transfer was executed succesfully
-                if(node.value.isDone) {
-                    queue.remove(node);
-                    return true;
-                }
+
             }
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw e;
-
         } finally {
             monitor.unlock();
         }
@@ -97,6 +107,8 @@ public class TransferQueue<E> {
                 // check if timeout has ended
                 remaining = Timeouts.remaining(start);
                 if (Timeouts.isTimeout(remaining)) {
+                    // TODO:
+                    // give up
                     return null;
                 }
 
@@ -110,6 +122,8 @@ public class TransferQueue<E> {
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            // TODO:
+            // give up
             throw e;
 
         } finally {

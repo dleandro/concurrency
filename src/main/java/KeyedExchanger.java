@@ -20,15 +20,23 @@ public class KeyedExchanger<T> {
 
     private final Lock monitor = new ReentrantLock();
     private final Condition condition = monitor.newCondition();
-    private HashMap<Integer, Request> requestsList = new HashMap<>();
+    private HashMap<Integer, Request<T>> requestsMap = new HashMap<>();
 
     public Optional<T> exchange(int key, T mydata, int timeout) throws InterruptedException {
         monitor.lock();
 
         try {
 
-            // is data waiting to be returned by the pair thread
-            if (requestCompleted(key, mydata)) return (Optional<T>) Optional.of(requestsList.get(key).data);
+            Request<T> dataRequest = requestsMap.get(key);
+
+            // easy path
+            // is data waiting to be collected
+            if (dataRequest != null) {
+                dataRequest.isDone = true;
+                completeRequests(key, mydata, dataRequest);
+
+                return dataRequest.data;
+            }
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
@@ -41,43 +49,46 @@ public class KeyedExchanger<T> {
 
             while (true) {
 
-                // is the data still not there?
-                if (requestCompleted(key, mydata)) return (Optional<T>) Optional.of(requestsList.get(key).data);
+                try {
+                    // if the thread got to this point it means that the pair thread didn't put the dataRequest in the map yet
+                    // so it's time to wait
+                    condition.await(remaining, TimeUnit.MILLISECONDS);
 
-                // if the thread got to this point it means that the pair thread didn't put the data in the map yet
-                // so it's time to wait
-                requestsList.put(key, new Request(mydata));
-                condition.await(remaining, TimeUnit.MILLISECONDS);
+                    remaining = Timeouts.remaining(start);
+                    if (Timeouts.isTimeout(remaining)) {
+                        // TODO:
+                        // give up
+                        return Optional.empty();
+                    }
 
-                remaining = Timeouts.remaining(start);
-                if (Timeouts.isTimeout(remaining)) {
-                    return Optional.empty();
-                }
+                    if (requestsMap.get(key).isDone) {
+                        return (Optional<T>) Optional.of(requestsMap.get(key).data);
+                    }
 
-                if (requestsList.get(key).isDone) {
-                    return (Optional<T>) Optional.of(requestsList.get(key).data);
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // TODO:
+                    // give up
+                    throw e;
                 }
             }
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw e;
-
         } finally {
+
             monitor.unlock();
         }
     }
 
-    private boolean requestCompleted(int key, T mydata) {
-        if (requestsList.get(key) != null) {
-            // add to the list the new data to be exchanged
-            requestsList.put(key, new Request(mydata));
+    private void completeRequests(int key, T myData, Request<T> dataRequest) {
 
-            // signal the other thread that their requested data is ready to be acquired
-            requestsList.get(key).isDone = true;
+        while (dataRequest.isDone) {
+            // add to the list the new data to be exchanged only if it's flagged,
+            // if it isn't flagged the old data hasn't been collected so we can't proceed with the overwriting of data
+            requestsMap.put(key, new Request<>(myData));
+            // reset the state
+            requestsMap.get(key).isDone = false;
+            // signal the pair thread that their requested data is ready to be acquired
             condition.signal();
-            return true;
         }
-        return false;
     }
 }

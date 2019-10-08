@@ -1,13 +1,11 @@
 import utils.Timeouts;
 
-import java.sql.SQLOutput;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.jar.JarOutputStream;
 
 public class Lazy<E> {
 
@@ -42,27 +40,31 @@ public class Lazy<E> {
             while (true) {
                 monitor.unlock();
 
-                // calculate value
-                if (getValue() == Optional.empty()) {
-                    condition.await(remaining, TimeUnit.MILLISECONDS);
+                try {
+                    // calculate value
+                    if (getValue() == Optional.empty()) {
+                        condition.await(remaining, TimeUnit.MILLISECONDS);
+                    }
+
+                    monitor.lock();
+
+                    // check if timeout has ended
+                    remaining = Timeouts.remaining(start);
+                    if (Timeouts.isTimeout(remaining)) {
+                        return Optional.empty();
+                    }
+
+                    // hardest path
+                    if (value.isPresent()) {
+                        return value;
+                    }
                 }
 
-                monitor.lock();
-                // check if timeout has ended
-                remaining = Timeouts.remaining(start);
-                if (Timeouts.isTimeout(remaining)) {
-                    return Optional.empty();
-                }
-
-                // hardest path
-                if (value.isPresent()) {
-                    return value;
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw e;
                 }
             }
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw e;
 
         } finally {
             monitor.unlock();
@@ -81,7 +83,7 @@ public class Lazy<E> {
 
         monitor.lock();
         try {
-            if(!value.isPresent())
+            if(value.isEmpty())
             {
                 this.value = calculatedValue;
             }
