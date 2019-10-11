@@ -21,20 +21,21 @@ public class TransferQueue<E> {
 
     private final Lock monitor = new ReentrantLock();
     private final Condition condition = monitor.newCondition();
-    private final NodeLinkedList<Request> queue = new NodeLinkedList<>();
+    private final NodeLinkedList<Request<E>> queue = new NodeLinkedList<>();
 
     // Non blocking
     public void put(E message) {
-        queue.push(new Request(message, monitor));
+        queue.push(new Request<E>(message, monitor));
     }
 
     public boolean transfer(E message, long timeout) throws InterruptedException {
         monitor.lock();
 
         try {
-            NodeLinkedList.Node<Request> node = queue.push(new Request<>(message, monitor));
+            NodeLinkedList.Node<Request<E>> node = queue.push(new Request<>(message, monitor));
+            condition.signal();
 
-            // check if the value has been consumed, if so the transfer was executed succesfully
+            // check if the value has been consumed, if so the transfer was executed successfully
             if (node.value.isDone) {
                 queue.remove(node);
                 return true;
@@ -70,11 +71,13 @@ public class TransferQueue<E> {
                     }
 
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    queue.remove(node);
+                    if (node.value.isDone) {
+                        Thread.currentThread().interrupt();
+                        return true;
+                    }
                     throw e;
                 }
-
-
             }
         } finally {
             monitor.unlock();
@@ -84,17 +87,22 @@ public class TransferQueue<E> {
     public E take(int timeout) throws InterruptedException {
         monitor.lock();
 
-        try {
-            NodeLinkedList.Node<Request> node = queue.pull();
+        NodeLinkedList.Node<Request<E>> node;
 
-            // happy path
-            if (transferCompleted(node, node.value.condition)) {
-                return (E) node.value.data;
+        try {
+            node = queue.pull();
+
+            // easy path
+            if (queue.isNotEmpty()) {
+                node.value.isDone = true;
+                node.value.condition.signal();
+                return node.value.data;
             }
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
-               return null;
+                queue.remove(node);
+                return null;
             }
 
             // prepare wait
@@ -107,37 +115,32 @@ public class TransferQueue<E> {
                 // check if timeout has ended
                 remaining = Timeouts.remaining(start);
                 if (Timeouts.isTimeout(remaining)) {
-                    // TODO:
-                    // give up
+                    queue.remove(node);
                     return null;
                 }
 
                 node = queue.pull();
 
-                if (transferCompleted(node, node.value.condition)) {
-                    return (E) node.value.data;
+                if (queue.isNotEmpty()) {
+                    node.value.isDone = true;
+                    node.value.condition.signal();
+                    return node.value.data;
                 }
 
             }
 
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            // TODO:
-            // give up
+            node = queue.pull();
+            if (queue.isNotEmpty()) {
+                Thread.currentThread().interrupt();
+                return node.value.data;
+            }
+            node.value.isDone = true;
+            node.value.condition.signal();
             throw e;
-
         } finally {
             monitor.unlock();
         }
 
-    }
-
-    private boolean transferCompleted(NodeLinkedList.Node<Request> node, Condition condition) {
-        if (node != null) {
-            node.value.isDone = true;
-            condition.signal();
-            return true;
-        }
-        return false;
     }
 }

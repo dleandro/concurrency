@@ -31,15 +31,18 @@ public class KeyedExchanger<T> {
 
             // easy path
             // is data waiting to be collected
-            if (dataRequest != null) {
-                dataRequest.isDone = true;
-                completeRequests(key, mydata, dataRequest);
-
+            if (dataRequest != null && !dataRequest.isDone) {
+                requestsMap.put(key, new Request<>(mydata));
+                condition.signal();
+                requestsMap.get(key).isDone = true;
                 return dataRequest.data;
+            } else {
+                requestsMap.put(key, new Request<T>(mydata));
             }
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
+                requestsMap.remove(key);
                 return Optional.empty();
             }
 
@@ -50,45 +53,30 @@ public class KeyedExchanger<T> {
             while (true) {
 
                 try {
-                    // if the thread got to this point it means that the pair thread didn't put the dataRequest in the map yet
+                    // if the thread got to this point it means that the pair thread didn't put the data in the map yet
                     // so it's time to wait
                     condition.await(remaining, TimeUnit.MILLISECONDS);
 
                     remaining = Timeouts.remaining(start);
                     if (Timeouts.isTimeout(remaining)) {
-                        // TODO:
-                        // give up
+                        // giving up
+                        requestsMap.remove(key);
                         return Optional.empty();
                     }
 
                     if (requestsMap.get(key).isDone) {
-                        return (Optional<T>) Optional.of(requestsMap.get(key).data);
+                        return requestsMap.get(key).data;
                     }
-
 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    // TODO:
-                    // give up
+                    // giving up
+                    requestsMap.remove(key);
                     throw e;
                 }
             }
         } finally {
-
             monitor.unlock();
-        }
-    }
-
-    private void completeRequests(int key, T myData, Request<T> dataRequest) {
-
-        while (dataRequest.isDone) {
-            // add to the list the new data to be exchanged only if it's flagged,
-            // if it isn't flagged the old data hasn't been collected so we can't proceed with the overwriting of data
-            requestsMap.put(key, new Request<>(myData));
-            // reset the state
-            requestsMap.get(key).isDone = false;
-            // signal the pair thread that their requested data is ready to be acquired
-            condition.signal();
         }
     }
 }

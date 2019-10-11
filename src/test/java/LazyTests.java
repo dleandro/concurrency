@@ -1,4 +1,4 @@
-import com.sun.imageio.plugins.common.LZWCompressor;
+/*import com.sun.imageio.plugins.common.LZWCompressor;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
 import org.junit.Test;
@@ -131,5 +131,5 @@ public class LazyTests {
                 nOfThreads, initialUnits);
     }
 
-}
+}*/
 

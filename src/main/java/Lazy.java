@@ -13,6 +13,7 @@ public class Lazy<E> {
     private final Lock monitor = new ReentrantLock();
     private final Condition condition = monitor.newCondition();
     private Optional<E> value = Optional.empty();
+    private boolean isBeingCalculated = false;
 
     public Lazy(Callable<E> provider) {
         this.provider = provider;
@@ -37,16 +38,20 @@ public class Lazy<E> {
             long start = Timeouts.start(timeout);
             long remaining = Timeouts.remaining(start);
 
+            monitor.unlock();
+
+            // calculate value if it isn't being calculated already
+            if (!isBeingCalculated) {
+                return getValue();
+            }
+
+            monitor.lock();
+
             while (true) {
-                monitor.unlock();
 
                 try {
-                    // calculate value
-                    if (getValue() == Optional.empty()) {
-                        condition.await(remaining, TimeUnit.MILLISECONDS);
-                    }
 
-                    monitor.lock();
+                    condition.await(remaining, TimeUnit.MILLISECONDS);
 
                     // check if timeout has ended
                     remaining = Timeouts.remaining(start);
@@ -55,12 +60,13 @@ public class Lazy<E> {
                     }
 
                     // hardest path
-                    if (value.isPresent()) {
-                        return value;
+                    if (this.value.isPresent()) {
+                        return this.value;
+                    } else {  // threads are still waiting for the value so we need to retry to calculate the value
+                        getValue();
                     }
-                }
 
-                catch (InterruptedException e) {
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw e;
                 }
@@ -73,18 +79,12 @@ public class Lazy<E> {
 
 
     private Optional<E> getValue() throws Exception {
-
-        // Means that value has been calculated and it's time to wait and return
-        if (value.isPresent()) {
-            return Optional.empty();
-        }
-
+        isBeingCalculated = true;
         Optional<E> calculatedValue = Optional.of(provider.call());
 
         monitor.lock();
         try {
-            if(value.isEmpty())
-            {
+            if(!value.isPresent()) {
                 this.value = calculatedValue;
             }
             condition.signalAll();
