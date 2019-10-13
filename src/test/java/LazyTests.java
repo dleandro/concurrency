@@ -1,6 +1,6 @@
-/*import com.sun.imageio.plugins.common.LZWCompressor;
-import com.sun.org.slf4j.internal.Logger;
-import com.sun.org.slf4j.internal.LoggerFactory;
+import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.junit.Test;
 import utils.Timeouts;
 
@@ -9,50 +9,43 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertFalse;
 
-public class LazyTests {
+public class LazyTests<T> {
     private static final Logger logger = LoggerFactory.getLogger(LazyTests.class);
     private static final Duration TEST_DURATION = Duration.ofSeconds(60);
 
-    private int calculateAndCheckElapsed(Lazy lazy, long timeout)
+    private Optional calculateAndCheckElapsed(Lazy lazy, long timeout)
             throws Exception {
-        Optional success;
-        int tries = 0;
+        Optional calculatedValue;
         // allows for a 100ms error due to scheduling delays
         long allowedTimeError = 100;
 
         do {
             long start = System.currentTimeMillis();
-            success = lazy.get(timeout);
+            calculatedValue = lazy.get(timeout);
             long duration = System.currentTimeMillis() - start;
-            tries += 1;
 
             if (Math.abs(duration - timeout) > allowedTimeError) {
-                logger.error("acquire was {} but should not exceed {}", duration, timeout);
-                if (!success.isPresent()) {
+                logger.info("get took {} and should not exceed {}", duration, timeout);
+                if (!calculatedValue.isPresent()) {
                     throw new RuntimeException("Acquire exceeded allowed time");
                 }
             }
 
-        } while (!success.isPresent());
+        } while (!calculatedValue.isPresent());
 
-        return tries;
+        return calculatedValue;
     }
 
-    public void test(Lazy lazy, int nOfThreads, int initialUnits) throws InterruptedException {
+    public void test(Lazy lazy, int nOfThreads, Optional initialValue) throws Exception {
 
         final List<Thread> ths = new ArrayList<>();
-        final AtomicInteger counter = new AtomicInteger(initialUnits);
         final AtomicBoolean error = new AtomicBoolean();
         final Instant deadline = Instant.now().plus(TEST_DURATION);
-        final long acquireTimeout = 10;
 
         for (int i = 0; i < nOfThreads; ++i) {
             Thread th = new Thread(() -> {
@@ -61,25 +54,19 @@ public class LazyTests {
                         if (Instant.now().compareTo(deadline) > 0) {
                             return;
                         }
-                        int tries = calculateAndCheckElapsed(lazy, acquireTimeout);
-                        try {
-                            int newValue = counter.decrementAndGet();
-                            if (newValue < 0) {
-                                logger.error("Too many units were acquired");
-                                error.set(true);
-                                return;
-                            }
-                            // logger.info("Acquired unit after {} tries", tries);
-                            Thread.sleep(100);
-                        } finally {
-                            counter.incrementAndGet();
-                            sem.release();
+                        Optional calculatedValue = calculateAndCheckElapsed(lazy, 1000);
+                        if (!calculatedValue.get().equals(initialValue.get())) {
+                            logger.error("More than one thread called callable");
+                            error.set(true);
+                            return;
                         }
+                        logger.info("succeeded");
+                        Thread.sleep(100);
                     }
                 } catch (InterruptedException e) {
                     logger.info("interruped, giving up");
-                } catch (RuntimeException e) {
-                    error.set(true);
+                } catch (Exception e) {
+                    error.set(false);
                 }
             });
             th.start();
@@ -94,7 +81,7 @@ public class LazyTests {
             Thread.sleep(interruptPeriod.toMillis());
         }
 
-        // join then all
+        // join them all
         long testDeadline = Timeouts.start(
                 TEST_DURATION.plusSeconds(5).getSeconds(),
                 TimeUnit.SECONDS);
@@ -109,27 +96,23 @@ public class LazyTests {
     }
 
     @Test
-    public void test_simple_semaphore() throws InterruptedException {
+    public void test_lazy() throws Exception {
         int nOfThreads = 100;
-        int initialUnits = nOfThreads / 2;
-        test(new SimpleUnarySemaphoreWithLocks(initialUnits), nOfThreads, initialUnits);
+        final int[] initialValue = {0};
+        test(new Lazy<>(() -> initialValue[0]++), nOfThreads, Optional.of(0));
     }
 
-    @Test
-    public void test_queue_based_semaphore() throws InterruptedException {
-        int nOfThreads = 100;
-        int initialUnits = nOfThreads / 2;
-        test(new UnarySemaphoreWithFifoOrderAndSpecificNotification(initialUnits),
-                nOfThreads, initialUnits);
+    @Test(expected = Exception.class)
+    public void test_lazy_with_exception_on_callable() throws Exception {
+        calculateAndCheckElapsed(new Lazy<>(() -> {
+            throw new Exception();
+        }), 1000);
     }
 
-    @Test
-    public void test_ks_based_semaphore() throws InterruptedException {
-        int nOfThreads = 100;
-        int initialUnits = nOfThreads / 2;
-        test(new UnarySemaphoreKS(initialUnits),
-                nOfThreads, initialUnits);
+    @Test(expected = RuntimeException.class)
+    public void test_lazy_with_no_timeout() throws Exception {
+        final int[] initialValue = {3};
+        calculateAndCheckElapsed(new Lazy<>(() -> initialValue[0]++), 0);
     }
-
-}*/
+}
 

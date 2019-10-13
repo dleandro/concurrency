@@ -38,14 +38,11 @@ public class Lazy<E> {
             long start = Timeouts.start(timeout);
             long remaining = Timeouts.remaining(start);
 
-            monitor.unlock();
-
             // calculate value if it isn't being calculated already
             if (!isBeingCalculated) {
-                return getValue();
+                getValue();
+                return value;
             }
-
-            monitor.lock();
 
             while (true) {
 
@@ -62,8 +59,11 @@ public class Lazy<E> {
                     // hardest path
                     if (this.value.isPresent()) {
                         return this.value;
-                    } else {  // threads are still waiting for the value so we need to retry to calculate the value
+                    }
+                    // threads are still waiting for the value so we need to retry to calculate the value
+                    if (!isBeingCalculated) {
                         getValue();
+                        return value;
                     }
 
                 } catch (InterruptedException e) {
@@ -79,19 +79,21 @@ public class Lazy<E> {
 
 
     private Optional<E> getValue() throws Exception {
-        isBeingCalculated = true;
-        Optional<E> calculatedValue = Optional.of(provider.call());
+        monitor.unlock();
+        Optional<E> calculatedValue;
+
+        try {
+             calculatedValue = Optional.of(provider.call());
+        } catch (Exception e) {
+            throw e;
+        }
 
         monitor.lock();
-        try {
-            if(!value.isPresent()) {
-                this.value = calculatedValue;
-            }
-            condition.signalAll();
-            return value;
-        } finally {
-            monitor.unlock();
+        if(!value.isPresent()) {
+            this.value = calculatedValue;
+            isBeingCalculated = true;
         }
+        condition.signalAll();
+        return value;
     }
-
 }
