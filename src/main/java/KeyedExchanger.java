@@ -1,6 +1,6 @@
+import utils.NodeLinkedList;
 import utils.Timeouts;
 
-import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -9,44 +9,60 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class KeyedExchanger<T> {
 
-    private static class Request<T> {
-        private boolean isDone = false;
-        private final Optional<T> data;
+    private static class Request {
 
-        Request(T data) {
-            this.data = Optional.of(data);
+        private boolean isDone = false;
+        private final int key;
+        private final Condition condition;
+
+        Request(int key, Lock monitor) {
+            this.key = key;
+            condition = monitor.newCondition();
+        }
+    }
+
+    private static class Data<T> {
+
+        private final int key;
+        private final T data;
+
+        Data(int key, T data) {
+            this.key = key;
+            this.data = data;
         }
     }
 
     private final Lock monitor = new ReentrantLock();
-    private final Condition condition = monitor.newCondition();
-    private HashMap<Integer, Request<T>> requestsMap = new HashMap<>();
+    private final NodeLinkedList<Request> requestsList = new NodeLinkedList<>();
+    private final NodeLinkedList<Data<T>> dataQueue = new NodeLinkedList<>();
 
-    public Optional<T> exchange(int key, T mydata, int timeout) throws InterruptedException {
+    public Optional<T> exchange(int key, T myData, int timeout) throws InterruptedException {
         monitor.lock();
 
         try {
 
-            Request<T> dataRequest = requestsMap.get(key);
+            NodeLinkedList.Node<Request> dataRequest;
+            dataQueue.push(new Data<>(key, myData));
 
-            // easy path
-            // is data waiting to be collected
-            if (dataRequest != null && !dataRequest.isDone) {
-                requestsMap.put(key, new Request<>(mydata));
-                condition.signal();
-                requestsMap.get(key).isDone = true;
-                return dataRequest.data;
-            } else {
-                requestsMap.put(key, new Request<T>(mydata));
+            if (requestsList.isNotEmpty() && requestsList.contains(node -> node.key == key,
+                    requestsList.getHeadNode())) {
+                dataRequest = requestsList.searchNodeAndReturn(node -> node.key == key, null,
+                        requestsList.getHeadNode());
+                dataRequest.value.isDone = true;
+                dataRequest.value.condition.signal();
+                NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue.searchNodeAndReturn(tData -> tData.key == key,
+                        null, dataQueue.getHeadNode());
+                dataQueue.remove(dataToReturn);
+                return Optional.of(dataToReturn.value.data);
             }
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
-                requestsMap.remove(key);
                 return Optional.empty();
             }
 
             // prepare wait
+            dataRequest = requestsList.push(new Request(key, monitor));
             long start = Timeouts.start(timeout);
             long remaining = Timeouts.remaining(start);
 
@@ -55,24 +71,40 @@ public class KeyedExchanger<T> {
                 try {
                     // if the thread got to this point it means that the pair thread didn't put the data in the map yet
                     // so it's time to wait
-                    condition.await(remaining, TimeUnit.MILLISECONDS);
-
-                    remaining = Timeouts.remaining(start);
-                    if (Timeouts.isTimeout(remaining)) {
-                        // giving up
-                        requestsMap.remove(key);
-                        return Optional.empty();
-                    }
-
-                    if (requestsMap.get(key).isDone) {
-                        return requestsMap.get(key).data;
-                    }
+                    dataRequest.value.condition.await(remaining, TimeUnit.MILLISECONDS);
 
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
                     // giving up
-                    requestsMap.remove(key);
+                    if (dataRequest.value.isDone) {
+                        NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue
+                                .searchNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
+                        dataQueue.remove(dataToReturn);
+                        return Optional.of(dataToReturn.value.data);
+                    }
+                    requestsList.remove(dataRequest);
+                    Thread.currentThread().interrupt();
                     throw e;
+                }
+
+                if (dataRequest.value.isDone) {
+                    NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue
+                            .searchNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
+                    dataQueue.remove(dataToReturn);
+                    return Optional.of(dataToReturn.value.data);
+                }
+
+                remaining = Timeouts.remaining(start);
+                if (Timeouts.isTimeout(remaining)) {
+
+                    if (dataRequest.value.isDone) {
+                        NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue
+                                .searchNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
+                        dataQueue.remove(dataToReturn);
+                        return Optional.of(dataToReturn.value.data);
+                    }
+
+                    requestsList.remove(dataRequest);
+                    return Optional.empty();
                 }
             }
         } finally {

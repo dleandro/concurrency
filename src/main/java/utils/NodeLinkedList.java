@@ -1,5 +1,7 @@
 package utils;
 
+import java.util.function.Predicate;
+
 public class NodeLinkedList<T> {
 
     public static class Node<T> {
@@ -31,6 +33,13 @@ public class NodeLinkedList<T> {
         return node;
     }
 
+    public Node<T> addToTail(T value) {
+        Node<T> node = new Node<>(value);
+        head.prev = node;
+        node.next = head;
+        return node;
+    }
+
     public boolean isEmpty() {
         return head == head.prev;
     }
@@ -39,11 +48,11 @@ public class NodeLinkedList<T> {
         return !isEmpty();
     }
 
-    public T getHeadValue() {
+    public Node<T> getHeadNode() {
         if(isEmpty()) {
             throw new IllegalStateException("cannot get head of an empty list");
         }
-        return head.next.value;
+        return head.next;
     }
 
     public boolean isHeadNode(Node<T> node){
@@ -63,5 +72,29 @@ public class NodeLinkedList<T> {
     public void remove (Node<T> node) {
         node.prev.next = node.next;
         node.next.prev = node.prev;
+    }
+
+    public Node<T> searchNodeAndReturn(Predicate<T> pred, Node<T> curr, Node<T> firstNodeToSearch) {
+
+        if (firstNodeToSearch.value != null && pred.test(firstNodeToSearch.value) && firstNodeToSearch != curr) {
+            /* To pull
+            *   Node<T> node = firstNodeToSearch;
+                node.prev.next = node.next;
+                node.next.prev = node.prev;
+                return node;
+            * */
+            return firstNodeToSearch;
+        }
+
+        return firstNodeToSearch.value == null ? new Node<>(null) : searchNodeAndReturn(pred, curr, firstNodeToSearch.next);
+    }
+
+    public boolean contains(Predicate<T> pred, Node<T> headNode) {
+
+        if (headNode.value != null && pred.test(headNode.value)) {
+            return true;
+        }
+
+        return headNode.value != null && contains(pred, headNode.next);
     }
 }

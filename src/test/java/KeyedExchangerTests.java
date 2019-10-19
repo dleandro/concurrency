@@ -1,6 +1,8 @@
+import utils.TestHelper;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.NodeLinkedList;
 import utils.Timeouts;
 
 import java.time.Duration;
@@ -10,79 +12,73 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 
 import static org.junit.Assert.assertFalse;
 
 public class KeyedExchangerTests {
 
-    private static final Logger logger = LoggerFactory.getLogger(LazyTests.class);
+    private static final Logger logger = LoggerFactory.getLogger(KeyedExchangerTests.class);
     private static final Duration TEST_DURATION = Duration.ofSeconds(60);
 
-    private Optional<Integer> exchangeAndCheckElapsed(KeyedExchanger<Integer> keyedExchanger, long timeout,
+    private Optional<Integer> exchangeAndCheckElapsed(KeyedExchanger<Integer> keyedExchanger,
                                                       int key, int data)
-            throws Exception {
-        Optional exchangedValue;
+            throws InterruptedException {
+        Optional<Integer> exchangedValue;
         // allows for a 100ms error due to scheduling delays
         long allowedTimeError = 100;
+        long timeout = 20000;
 
-        do {
-            long start = System.currentTimeMillis();
-            exchangedValue = keyedExchanger.exchange(key, data, (int) timeout);
-            long duration = System.currentTimeMillis() - start;
+        long start = System.currentTimeMillis();
+        exchangedValue = keyedExchanger.exchange(key, data, (int) timeout);
+        long duration = System.currentTimeMillis() - start;
 
-            if (Math.abs(duration - timeout) > allowedTimeError) {
-                logger.info("get took {} and should not exceed {}", duration, timeout);
-                if (!exchangedValue.isPresent()) {
-                    throw new RuntimeException("Acquire exceeded allowed time");
-                }
+        if (duration - timeout > allowedTimeError) {
+            logger.info("exchange took {} and should not exceed {}", duration, timeout);
+            if (!exchangedValue.isPresent()) {
+                throw new RuntimeException("exchange exceeded allowed time");
             }
-
-        } while (!exchangedValue.isPresent());
+        }
 
         return exchangedValue;
     }
 
-    public void test(KeyedExchanger keyedExchanger, int nOfThreads) throws Exception {
+    private void test(KeyedExchanger<Integer> keyedExchanger, int nOfThreads) throws InterruptedException{
 
         final List<Thread> ths = new ArrayList<>();
         final AtomicBoolean error = new AtomicBoolean();
         final Instant deadline = Instant.now().plus(TEST_DURATION);
-        final int[] value = {1};
+        NodeLinkedList<ThreadInfo> threadInfoInitialValues = new NodeLinkedList<>();
 
         for (int i = 0; i < nOfThreads; ++i) {
-            value[0] += 1;
+            final int nextIntKey = TestHelper.generateIntKeys();
             Thread th = new Thread(() -> {
                 try {
-                    while (true) {
-                        if (Instant.now().compareTo(deadline) > 0) {
-                            return;
-                        }
-                        Optional exchangedValue = exchangeAndCheckElapsed(keyedExchanger, 10000,
-                                generateKeys(), value[0]);
-                       /* if (!exchangedValue.get().equals(initialValue.get())) {
-                            logger.error("More than one thread called callable");
-                            error.set(true);
-                            return;
-                        }*/
-                        logger.info("succeeded");
-                        Thread.sleep(100);
+                    if (Instant.now().compareTo(deadline) > 0) {
+                        return;
                     }
+
+                    NodeLinkedList.Node<ThreadInfo> currentThreadNode = threadInfoInitialValues
+                            .push(new ThreadInfo(nextIntKey, TestHelper.generateRandomValue()));
+
+                    Optional<Integer> exchangedValue = exchangeAndCheckElapsed(keyedExchanger,
+                            currentThreadNode.value.key, currentThreadNode.value.data);
+
+                    if (!checkIfValuesWereExchanged(threadInfoInitialValues, exchangedValue, currentThreadNode)) {
+                        logger.error("Thread didn't receive the pair thread's value");
+                        error.set(true);
+                        return;
+                    }
+                    Thread.sleep(100);
+
                 } catch (InterruptedException e) {
-                    logger.info("interruped, giving up");
-                } catch (Exception e) {
-                    error.set(false);
+                    logger.info("interrupted, giving up");
+                } catch (RuntimeException e) {
+                    error.set(true);
                 }
             });
             th.start();
             ths.add(th);
-        }
-
-
-        // let's interrupt some threads to see what happens
-        Duration interruptPeriod = TEST_DURATION.dividedBy(nOfThreads/3);
-        for (int i = 0; i < nOfThreads; i += 3) {
-            ths.get(i).interrupt();
-            Thread.sleep(interruptPeriod.toMillis());
         }
 
         // join them all
@@ -99,14 +95,33 @@ public class KeyedExchangerTests {
         assertFalse(error.get());
     }
 
-    private int generateKeys() {
-        return 0;
+    // if more than two threads have the same key synchronizer doesn't choose who gets the values
+    private boolean checkIfValuesWereExchanged(NodeLinkedList<ThreadInfo> threadInfoInitialValues,
+                                               Optional<Integer> exchangedValue,
+                                               NodeLinkedList.Node<ThreadInfo> currentThreadNode) {
+
+        Predicate<ThreadInfo> isPairThreadsNode = pairThreadInfo -> pairThreadInfo.key == currentThreadNode.value.key;
+
+        NodeLinkedList.Node<ThreadInfo> pairThreadNode = threadInfoInitialValues
+                .searchNodeAndReturn(isPairThreadsNode, currentThreadNode, threadInfoInitialValues.getHeadNode());
+
+        return exchangedValue.isPresent() && pairThreadNode.value != null || exchangedValue.equals(Optional.empty());
     }
 
     @Test
-    public void test_keyed_exchanger() throws Exception {
-        int nOfThreads = 25;
-        test(new KeyedExchanger<Integer>(), nOfThreads);
+    public void test_keyed_exchanger() throws InterruptedException {
+        int nOfThreads = 30;
+        test(new KeyedExchanger<>(), nOfThreads);
     }
 
+    private static class ThreadInfo {
+
+        private final int data;
+        private final int key;
+
+        ThreadInfo(int key, int data) {
+            this.data = data;
+            this.key = key;
+        }
+    }
 }

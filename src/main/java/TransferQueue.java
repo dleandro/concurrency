@@ -8,75 +8,79 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class TransferQueue<E> {
 
-    private static class Request<E> {
+    private static class Request {
         private boolean isDone = false;
-        private final E data;
         private final Condition condition;
 
-        Request(E data, Lock monitor) {
-            this.data = data;
+        Request(Lock monitor) {
             this.condition = monitor.newCondition();
         }
     }
 
+    private final NodeLinkedList<E> dataQueue = new NodeLinkedList<>();
     private final Lock monitor = new ReentrantLock();
-    private final Condition condition = monitor.newCondition();
-    private final NodeLinkedList<Request<E>> queue = new NodeLinkedList<>();
+    private final NodeLinkedList<Request> takeRequestQueue = new NodeLinkedList<>();
+    private final NodeLinkedList<Request> transferRequestQueue = new NodeLinkedList<>();
 
     // Non blocking
     public void put(E message) {
-        queue.push(new Request<E>(message, monitor));
+        // add to tail to make sure that take doesn't signal transfer while consuming put's messages instead of
+        // transfer's messages
+        if (transferRequestQueue.isNotEmpty()) {
+            dataQueue.addToTail(message);
+        }
+        else {
+            dataQueue.push(message);
+        }
     }
 
     public boolean transfer(E message, long timeout) throws InterruptedException {
         monitor.lock();
 
         try {
-            NodeLinkedList.Node<Request<E>> node = queue.push(new Request<>(message, monitor));
-            condition.signal();
 
-            // check if the value has been consumed, if so the transfer was executed successfully
-            if (node.value.isDone) {
-                queue.remove(node);
-                return true;
+            dataQueue.push(message);
+
+            if (takeRequestQueue.isNotEmpty()) {
+                NodeLinkedList.Node<Request> takeRequest = takeRequestQueue.pull();
+                takeRequest.value.isDone = true;
+                takeRequest.value.condition.signal();
             }
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
-                queue.remove(node);
                 return false;
             }
 
+            NodeLinkedList.Node<Request> transferRequest = transferRequestQueue.push(new Request(monitor));
             // prepare wait
-            long start = Timeouts.start(timeout);
-            long remaining = Timeouts.remaining(start);
+            long limit = Timeouts.start(timeout);
+            long remaining = Timeouts.remaining(limit);
 
             while (true) {
 
                 try {
-
-                    node.value.condition.await(remaining, TimeUnit.MILLISECONDS);
-
-                    // check if timeout has ended
-                    remaining = Timeouts.remaining(start);
-                    if (Timeouts.isTimeout(remaining)) {
-                        queue.remove(node);
-                        return false;
-                    }
-
-                    // check if the value has been consumed, if so the transfer was executed succesfully
-                    if (node.value.isDone) {
-                        queue.remove(node);
-                        return true;
-                    }
+                    transferRequest.value.condition.await(remaining, TimeUnit.MILLISECONDS);
 
                 } catch (InterruptedException e) {
-                    queue.remove(node);
-                    if (node.value.isDone) {
+                    if (transferRequest.value.isDone) {
                         Thread.currentThread().interrupt();
                         return true;
                     }
+                    transferRequestQueue.remove(transferRequest);
                     throw e;
+                }
+
+                // check if the value has been consumed, if so the transfer was executed successfully
+                if (transferRequest.value.isDone) {
+                    return true;
+                }
+
+                // check if timeout has ended
+                remaining = Timeouts.remaining(limit);
+                if (Timeouts.isTimeout(remaining)) {
+                    transferRequestQueue.remove(transferRequest);
+                    return false;
                 }
             }
         } finally {
@@ -87,60 +91,62 @@ public class TransferQueue<E> {
     public E take(int timeout) throws InterruptedException {
         monitor.lock();
 
-        NodeLinkedList.Node<Request<E>> node;
-
         try {
-            node = queue.pull();
 
             // easy path
-            if (queue.isNotEmpty()) {
-                node.value.isDone = true;
-                node.value.condition.signal();
-                return node.value.data;
+            if (dataQueue.isNotEmpty() && transferRequestQueue.isEmpty()) {
+                return dataQueue.pull().value;
+            } else if (transferRequestQueue.isNotEmpty()){
+                completeRequest(transferRequestQueue);
+                return dataQueue.pull().value;
             }
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
-                queue.remove(node);
                 return null;
             }
 
+            NodeLinkedList.Node<Request> takeRequest = takeRequestQueue.push(new Request(monitor));
             // prepare wait
-            long start = Timeouts.start(timeout);
-            long remaining = Timeouts.remaining(start);
+            long limit = Timeouts.start(timeout);
+            long remaining = Timeouts.remaining(limit);
 
             while (true) {
-                condition.await(remaining, TimeUnit.MILLISECONDS);
+
+                try {
+                    takeRequest.value.condition.await(remaining, TimeUnit.MILLISECONDS);
+
+                } catch (InterruptedException e) {
+                    if (takeRequest.value.isDone) {
+                        Thread.currentThread().interrupt();
+                        completeRequest(transferRequestQueue);
+                        return dataQueue.pull().value;
+                    }
+                    takeRequestQueue.remove(takeRequest);
+                    throw e;
+                }
+
+                if (takeRequest.value.isDone) {
+                    completeRequest(transferRequestQueue);
+                    return dataQueue.pull().value;
+                }
 
                 // check if timeout has ended
-                remaining = Timeouts.remaining(start);
+                remaining = Timeouts.remaining(limit);
                 if (Timeouts.isTimeout(remaining)) {
-                    queue.remove(node);
+                    takeRequestQueue.remove(takeRequest);
                     return null;
                 }
-
-                node = queue.pull();
-
-                if (queue.isNotEmpty()) {
-                    node.value.isDone = true;
-                    node.value.condition.signal();
-                    return node.value.data;
-                }
-
             }
 
-        } catch (InterruptedException e) {
-            node = queue.pull();
-            if (queue.isNotEmpty()) {
-                Thread.currentThread().interrupt();
-                return node.value.data;
-            }
-            node.value.isDone = true;
-            node.value.condition.signal();
-            throw e;
         } finally {
             monitor.unlock();
         }
+    }
 
+    private void completeRequest(NodeLinkedList<Request> listToCompleteRequest) {
+        NodeLinkedList.Node<Request> nodeToComplete = listToCompleteRequest.pull();
+        nodeToComplete.value.isDone = true;
+        nodeToComplete.value.condition.signal();
     }
 }

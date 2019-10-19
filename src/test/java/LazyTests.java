@@ -1,7 +1,6 @@
-import org.junit.Assert;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.junit.Test;
 import utils.Timeouts;
 
 import java.time.Duration;
@@ -16,11 +15,11 @@ import static org.junit.Assert.assertFalse;
 
 public class LazyTests<T> {
     private static final Logger logger = LoggerFactory.getLogger(LazyTests.class);
-    private static final Duration TEST_DURATION = Duration.ofSeconds(60);
+    private static final Duration TEST_DURATION = Duration.ofSeconds(5);
 
-    private Optional calculateAndCheckElapsed(Lazy lazy, long timeout)
+    private Optional<T> calculateAndCheckElapsed(Lazy lazy, long timeout)
             throws Exception {
-        Optional calculatedValue;
+        Optional<T> calculatedValue;
         // allows for a 100ms error due to scheduling delays
         long allowedTimeError = 100;
 
@@ -29,19 +28,19 @@ public class LazyTests<T> {
             calculatedValue = lazy.get(timeout);
             long duration = System.currentTimeMillis() - start;
 
-            if (Math.abs(duration - timeout) > allowedTimeError) {
+            if (duration - timeout > allowedTimeError) {
                 logger.info("get took {} and should not exceed {}", duration, timeout);
                 if (!calculatedValue.isPresent()) {
-                    throw new RuntimeException("Acquire exceeded allowed time");
+                    throw new RuntimeException("get exceeded allowed time");
                 }
             }
-
         } while (!calculatedValue.isPresent());
 
         return calculatedValue;
     }
 
-    public void test(Lazy lazy, int nOfThreads, Optional initialValue) throws Exception {
+    private AtomicBoolean test(Lazy lazy, int nOfThreads, Optional initialValue, long timeout)
+            throws Exception {
 
         final List<Thread> ths = new ArrayList<>();
         final AtomicBoolean error = new AtomicBoolean();
@@ -54,25 +53,23 @@ public class LazyTests<T> {
                         if (Instant.now().compareTo(deadline) > 0) {
                             return;
                         }
-                        Optional calculatedValue = calculateAndCheckElapsed(lazy, 1000);
+                        Optional<T> calculatedValue = calculateAndCheckElapsed(lazy, timeout);
                         if (!calculatedValue.get().equals(initialValue.get())) {
                             logger.error("More than one thread called callable");
                             error.set(true);
                             return;
                         }
-                        logger.info("succeeded");
                         Thread.sleep(100);
                     }
                 } catch (InterruptedException e) {
-                    logger.info("interruped, giving up");
+                    logger.info("interrupted, giving up");
                 } catch (Exception e) {
-                    error.set(false);
+                    error.set(true);
                 }
             });
             th.start();
             ths.add(th);
         }
-
 
         // let's interrupt some threads to see what happens
         Duration interruptPeriod = TEST_DURATION.dividedBy(nOfThreads/3);
@@ -88,31 +85,24 @@ public class LazyTests<T> {
         for (Thread th : ths) {
             long remaining = Timeouts.remaining(testDeadline);
             th.join(remaining);
-            if (th.isAlive()) {
-                logger.error("Test didn't stop when it was supposed to");
-            }
         }
-        assertFalse(error.get());
+        return error;
     }
 
     @Test
     public void test_lazy() throws Exception {
-        int nOfThreads = 100;
+        int nOfThreads = 10;
         final int[] initialValue = {0};
-        test(new Lazy<>(() -> initialValue[0]++), nOfThreads, Optional.of(0));
-    }
-
-    @Test(expected = Exception.class)
-    public void test_lazy_with_exception_on_callable() throws Exception {
-        calculateAndCheckElapsed(new Lazy<>(() -> {
-            throw new Exception();
-        }), 1000);
+        AtomicBoolean result = test(new Lazy<>(() -> initialValue[0]++), nOfThreads, Optional.of(initialValue[0]),
+                1000);
+        assertFalse(result.get());
     }
 
     @Test(expected = RuntimeException.class)
-    public void test_lazy_with_no_timeout() throws Exception {
+    public void test_lazy_to_produce_timeout() throws Exception {
         final int[] initialValue = {3};
-        calculateAndCheckElapsed(new Lazy<>(() -> initialValue[0]++), 0);
+        int nOfThreads = 2;
+        test(new Lazy<>(() -> initialValue[0]++), nOfThreads, Optional.of(initialValue[0]), 0);
     }
 }
 
