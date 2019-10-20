@@ -1,6 +1,7 @@
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import synchronizers.TransferQueue;
 import utils.TestHelper;
 import utils.Timeouts;
 
@@ -11,7 +12,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 import static org.junit.Assert.assertFalse;
 

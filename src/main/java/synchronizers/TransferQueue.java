@@ -1,3 +1,5 @@
+package synchronizers;
+
 import utils.NodeLinkedList;
 import utils.Timeouts;
 

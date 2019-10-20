@@ -1,3 +1,4 @@
+import synchronizers.KeyedExchanger;
 import utils.TestHelper;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -105,7 +106,7 @@ public class KeyedExchangerTests {
         NodeLinkedList.Node<ThreadInfo> pairThreadNode = threadInfoInitialValues
                 .searchNodeAndReturn(isPairThreadsNode, currentThreadNode, threadInfoInitialValues.getHeadNode());
 
-        return exchangedValue.isPresent() && pairThreadNode.value != null || exchangedValue.equals(Optional.empty());
+        return exchangedValue.isPresent() && pairThreadNode.value != null;
     }
 
     @Test
