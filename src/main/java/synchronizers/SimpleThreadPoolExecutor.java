@@ -1,12 +1,12 @@
 package synchronizers;
 
 import utils.NodeLinkedList;
+import utils.Result;
 import utils.SynchronizerState;
 import utils.Timeouts;
 
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -24,95 +24,11 @@ public class SimpleThreadPoolExecutor {
     private SynchronizerState state = SynchronizerState.isOpen;
     private final NodeLinkedList<WorkerThread> threadPool = new NodeLinkedList<>();
     private final NodeLinkedList<Work> workQueue = new NodeLinkedList<>();
-    private final NodeLinkedList<Request> workRequestQueue = new NodeLinkedList<>();
+    private final NodeLinkedList<Request> requestWorkQueue = new NodeLinkedList<>();
 
     public SimpleThreadPoolExecutor(int maxPoolSize, int keepAliveTime) {
         this.maxPoolSize = maxPoolSize;
         this.keepAliveTime = keepAliveTime;
-    }
-
-    private void manageThreads() {
-        monitor.lock();
-        try {
-            if (existingThreads < maxPoolSize && availableThreads == 0
-                    && state == SynchronizerState.isOpen) {
-                existingThreads++;
-                threadPool.push(new WorkerThread(new Thread(() -> {
-
-                    monitor.lock();
-
-                    try {
-
-                        if (workQueue.isNotEmpty()) {
-                            NodeLinkedList.Node<Work> workNode = workQueue.pull();
-                            workNode.value.work.run();
-                        }
-
-                        // check if it's supposed to wait
-                        if (Timeouts.noWait(keepAliveTime)) {
-                            Thread.currentThread().interrupt();
-                            return;
-                        }
-
-                        NodeLinkedList.Node<Request> workRequest = workRequestQueue.push(new Request(monitor));
-                        // prepare wait
-                        long limit = Timeouts.start(keepAliveTime);
-                        long remaining = Timeouts.remaining(limit);
-
-                        while (true) {
-
-                            try {
-                                availableThreads++;
-                                workRequest.value.condition.await(remaining, TimeUnit.MILLISECONDS);
-                            } catch (InterruptedException e) {
-                                if (workRequest.value.isDone) {
-                                    workQueue.pull().value.work.run();
-                                    availableThreads--;
-                                    return;
-                                }
-                                Thread.currentThread().interrupt();
-                            }
-
-                            if (workRequest.value.isDone) {
-                                workQueue.pull().value.work.run();
-                                availableThreads--;
-                                return;
-                            }
-
-                            // check if timeout has ended
-                            remaining = Timeouts.remaining(limit);
-                            if (Timeouts.isTimeout(remaining)) {
-                                Thread.currentThread().interrupt();
-                                return;
-                            }
-                        }
-
-                    } finally {
-                        monitor.unlock();
-                    }
-
-                })));
-            }
-        } finally {
-            monitor.unlock();
-        }
-    }
-
-    private void manageWork(Result result) {
-
-        if (workRequestQueue.isNotEmpty()) {
-            NodeLinkedList.Node<Request> requestNode = workRequestQueue.pull();
-            requestNode.value.isDone = true;
-            requestNode.value.condition.signal();
-        }
-
-        workQueue.push(new Work(() -> {
-            try {
-                result.get(1000);
-            } catch (Exception e) {
-                Thread.currentThread().interrupt();
-            }
-        }));
     }
 
     public <T> Result<T> execute(Callable<T> command) throws InterruptedException {
@@ -132,7 +48,7 @@ public class SimpleThreadPoolExecutor {
             NodeLinkedList.Node<WorkerThread> workerThread = threadPool.pull();
             workerThread.value.thread.start();
 
-            Result<T> result = new Result<T>() {
+            return new Result<T>() {
                 @Override
                 public boolean isComplete() {
                     return workerThread.value.hasBeenExecuted;
@@ -145,45 +61,104 @@ public class SimpleThreadPoolExecutor {
 
                 @Override
                 public Optional<T> get(int timeout) throws Exception {
+                    final Optional[] result = {Optional.empty()};
 
-                    try {
-                        // check if it's supposed to wait
-                        if (Timeouts.noWait(timeout)) {
-                            return Optional.empty();
-                        }
+                    result[0] = new Lazy<>(command).get(timeout);
+                    workerThread.value.hasBeenExecuted = true;
 
-                        long start = Timeouts.start(timeout);
-                        long remaining = Timeouts.remaining(start);
-
-                        Callable<T> callableWithTimeout = () -> {
-
-                            if (Timeouts.isTimeout(remaining)) {
-                                return null;
-                            }
-                            return command.call();
-                        };
-
-                        T calculatedValue = callableWithTimeout.call();
-
-                        workerThread.value.hasBeenExecuted = true;
-
-                        if (calculatedValue == null) {
-                            return Optional.empty();
-                        }
-
-                        return Optional.of(calculatedValue);
-
-                    } catch (Exception e) {
-                        if (workerThread.value.hasBeenCancelled) {
-                            throw new CancellationException();
-                        }
-                        throw e;
-                    }
+                    return result[0];
                 }
             };
 
-            manageWork(result);
-            return result;
+        } finally {
+            monitor.unlock();
+        }
+    }
+
+    private void manageThreads() {
+
+        if (existingThreads < maxPoolSize && availableThreads == 0
+                && state == SynchronizerState.isOpen) {
+            existingThreads++;
+            availableThreads++;
+            NodeLinkedList.Node<WorkerThread> threadNode = threadPool.push(new WorkerThread(null));
+            threadNode.value.thread = new Thread(() -> {
+
+                try {
+                    monitor.lock();
+
+                    if (workQueue.isNotEmpty()) {
+                        availableThreads--;
+                        workQueue.pull().value.work.run();
+                        return;
+                    }
+
+                    // check if it's supposed to wait
+                    if (Timeouts.noWait(keepAliveTime)) {
+                        Thread.currentThread().interrupt();
+                        threadPool.remove(threadNode);
+                        return;
+                    }
+
+                    NodeLinkedList.Node<Request> workRequest = requestWorkQueue.push(new Request(monitor));
+                    // prepare wait
+                    long limit = Timeouts.start(keepAliveTime);
+                    long remaining = Timeouts.remaining(limit);
+
+                    while (true) {
+
+                        try {
+                            availableThreads++;
+                            workRequest.value.condition.await(remaining, TimeUnit.MILLISECONDS);
+                        } catch (InterruptedException e) {
+                            if (workRequest.value.isDone && workQueue.isNotEmpty()) {
+                                // couldn't give up because request was already fulfilled
+                                availableThreads--;
+                                workQueue.pull().value.work.run();
+                                return;
+                            }
+                            threadPool.remove(threadNode);
+                            Thread.currentThread().interrupt();
+                        }
+
+                        if (workRequest.value.isDone && workQueue.isNotEmpty()) {
+                            availableThreads--;
+                            workQueue.pull().value.work.run();
+                            return;
+                        }
+
+                        // check if timeout has ended
+                        remaining = Timeouts.remaining(limit);
+                        if (Timeouts.isTimeout(remaining)) {
+                            threadPool.remove(threadNode);
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                    }
+
+                } finally {
+                    monitor.unlock();
+                }
+            });
+        }
+    }
+
+
+    public void manageWork(Runnable runnable) {
+        monitor.lock();
+
+        try {
+            if (requestWorkQueue.isNotEmpty() && state == SynchronizerState.isOpen) {
+                NodeLinkedList.Node<Request> requestNode = requestWorkQueue.pull();
+                workQueue.push(new Work(runnable));
+                requestNode.value.isDone = true;
+                requestNode.value.condition.signal();
+                return;
+            }
+
+            if (state == SynchronizerState.isOpen) {
+                workQueue.push(new Work(runnable));
+            }
 
         } finally {
             monitor.unlock();
@@ -191,10 +166,19 @@ public class SimpleThreadPoolExecutor {
     }
 
 
+
     public void shutdown() {
         monitor.lock();
 
         try {
+            threadPool.foreach(workerThreadNode -> {
+                try {
+                    workerThreadNode.value.thread.join();
+                    threadPool.remove(workerThreadNode);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, threadPool.getHeadNode());
             state = SynchronizerState.isShutdown;
             condition.signal();
         } finally {
@@ -203,7 +187,6 @@ public class SimpleThreadPoolExecutor {
     }
 
     public boolean awaitTermination(int timeout) throws InterruptedException {
-
         monitor.lock();
 
         try {
@@ -260,7 +243,7 @@ public class SimpleThreadPoolExecutor {
 
         private boolean hasBeenCancelled = false;
         private boolean hasBeenExecuted = false;
-        private final Thread thread;
+        private Thread thread;
 
         WorkerThread(Thread thread) {
             this.thread = thread;

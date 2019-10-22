@@ -1,5 +1,6 @@
 package utils;
 
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class NodeLinkedList<T> {
@@ -74,20 +75,28 @@ public class NodeLinkedList<T> {
         node.next.prev = node.prev;
     }
 
-    public Node<T> searchNodeAndReturn(Predicate<T> pred, Node<T> curr, Node<T> firstNodeToSearch) {
+    public Node<T> pullSpecificNodeAndReturn(Predicate<T> pred, Node<T> curr, Node<T> firstNodeToSearch) {
 
         if (firstNodeToSearch.value != null && pred.test(firstNodeToSearch.value) && firstNodeToSearch != curr) {
-            /* To pull
-            *   Node<T> node = firstNodeToSearch;
-                node.prev.next = node.next;
-                node.next.prev = node.prev;
-                return node;
-            * */
+            // To pull
+            firstNodeToSearch.prev.next = firstNodeToSearch.next;
+            firstNodeToSearch.next.prev = firstNodeToSearch.prev;
+            return firstNodeToSearch;
+        }
+
+        return firstNodeToSearch.value == null ? new Node<>(null) :
+                pullSpecificNodeAndReturn(pred, curr, firstNodeToSearch.next);
+    }
+
+    public Node<T> searchNodeAndReturn (Predicate<T> pred, Node<T> curr, Node<T> firstNodeToSearch) {
+
+        if (firstNodeToSearch.value != null && pred.test(firstNodeToSearch.value) && firstNodeToSearch != curr) {
             return firstNodeToSearch;
         }
 
         return firstNodeToSearch.value == null ? new Node<>(null) : searchNodeAndReturn(pred, curr, firstNodeToSearch.next);
     }
+
 
     public boolean contains(Predicate<T> pred, Node<T> headNode) {
 
@@ -96,5 +105,16 @@ public class NodeLinkedList<T> {
         }
 
         return headNode.value != null && contains(pred, headNode.next);
+    }
+
+    public void foreach(Consumer<Node<T>> cons, Node<T> firstNodeToIterate) {
+
+        if (firstNodeToIterate.value != null) {
+            cons.accept(firstNodeToIterate);
+        }
+
+        if (firstNodeToIterate.next.value != null) {
+            foreach(cons, firstNodeToIterate.next);
+        }
     }
 }

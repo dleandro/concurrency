@@ -44,19 +44,25 @@ public class KeyedExchanger<T> {
         try {
 
             NodeLinkedList.Node<Request> dataRequest;
-            dataQueue.push(new Data<>(key, myData));
 
+            // check if pair thread already pushed my future data, if so
+            // complete pair thread's request, pull my future data from data queue and push my data
+            // for the pair thread
             if (requestsList.isNotEmpty() && requestsList.contains(node -> node.key == key,
                     requestsList.getHeadNode())) {
                 dataRequest = requestsList.searchNodeAndReturn(node -> node.key == key, null,
                         requestsList.getHeadNode());
                 dataRequest.value.isDone = true;
+                // push my data
+                dataQueue.push(new Data<>(key, myData));
                 dataRequest.value.condition.signal();
-                NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue.searchNodeAndReturn(tData -> tData.key == key,
+                NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue.pullSpecificNodeAndReturn(tData -> tData.key == key,
                         null, dataQueue.getHeadNode());
-                dataQueue.remove(dataToReturn);
                 return Optional.of(dataToReturn.value.data);
             }
+
+            // push my data
+            dataQueue.push(new Data<>(key, myData));
 
             // check if it's supposed to wait
             if (Timeouts.noWait(timeout)) {
@@ -79,8 +85,7 @@ public class KeyedExchanger<T> {
                     // giving up
                     if (dataRequest.value.isDone) {
                         NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue
-                                .searchNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
-                        dataQueue.remove(dataToReturn);
+                                .pullSpecificNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
                         return Optional.of(dataToReturn.value.data);
                     }
                     requestsList.remove(dataRequest);
@@ -90,8 +95,7 @@ public class KeyedExchanger<T> {
 
                 if (dataRequest.value.isDone) {
                     NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue
-                            .searchNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
-                    dataQueue.remove(dataToReturn);
+                            .pullSpecificNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
                     return Optional.of(dataToReturn.value.data);
                 }
 
@@ -100,8 +104,7 @@ public class KeyedExchanger<T> {
 
                     if (dataRequest.value.isDone) {
                         NodeLinkedList.Node<Data<T>> dataToReturn = dataQueue
-                                .searchNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
-                        dataQueue.remove(dataToReturn);
+                                .pullSpecificNodeAndReturn(tData -> tData.key == key, null, dataQueue.getHeadNode());
                         return Optional.of(dataToReturn.value.data);
                     }
 

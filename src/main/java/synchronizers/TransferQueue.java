@@ -43,6 +43,7 @@ public class TransferQueue<E> {
 
             dataQueue.push(message);
 
+            // check if there is any take request ready to be fulfilled
             if (takeRequestQueue.isNotEmpty()) {
                 NodeLinkedList.Node<Request> takeRequest = takeRequestQueue.pull();
                 takeRequest.value.isDone = true;
@@ -54,6 +55,7 @@ public class TransferQueue<E> {
                 return false;
             }
 
+            // send my request
             NodeLinkedList.Node<Request> transferRequest = transferRequestQueue.push(new Request(monitor));
             // prepare wait
             long limit = Timeouts.start(timeout);
@@ -66,6 +68,7 @@ public class TransferQueue<E> {
 
                 } catch (InterruptedException e) {
                     if (transferRequest.value.isDone) {
+                        // couldn't give up because request was already fulfilled
                         Thread.currentThread().interrupt();
                         return true;
                     }
@@ -97,6 +100,8 @@ public class TransferQueue<E> {
 
             // easy path
             if (dataQueue.isNotEmpty() && transferRequestQueue.isEmpty()) {
+                // means that this data was sent by the put method so there is no need to signal
+                // or complete any request
                 return dataQueue.pull().value;
             } else if (transferRequestQueue.isNotEmpty()){
                 completeRequest(transferRequestQueue);
@@ -120,6 +125,7 @@ public class TransferQueue<E> {
 
                 } catch (InterruptedException e) {
                     if (takeRequest.value.isDone) {
+                        // couldn't give up because request was already fulfilled
                         Thread.currentThread().interrupt();
                         completeRequest(transferRequestQueue);
                         return dataQueue.pull().value;

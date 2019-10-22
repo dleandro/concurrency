@@ -90,6 +90,7 @@ public class Lazy<E> {
 
     private Optional<E> getValue() throws Exception {
 
+        // call provider without mutual exclusion
         Optional<E> calculatedValue = Optional.of(provider.call());
 
         monitor.lock();

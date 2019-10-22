@@ -68,14 +68,6 @@ public class TransferQueueTests {
             ths.add(th);
         }
 
-/*
-        // let's interrupt some threads to see what happens
-        Duration interruptPeriod = TEST_DURATION.dividedBy(nOfThreads/3);
-        for (int i = 0; i < nOfThreads; i += 3) {
-            ths.get(i).interrupt();
-            Thread.sleep(interruptPeriod.toMillis());
-        }
-*/
         // join then all
         long testDeadline = Timeouts.start(
                 TEST_DURATION.plusSeconds(5).getSeconds(),
