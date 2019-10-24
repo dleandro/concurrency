@@ -45,7 +45,7 @@ public class Lazy<E> {
                 try {
                     isBeingCalculated = true;
                     return getValue();
-                } finally {
+                }  finally {
                     isBeingCalculated = false;
                 }
             }

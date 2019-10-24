@@ -96,8 +96,6 @@ public class SimpleThreadPoolExecutorTests<T> {
     public void testThreadPoolExecutor() throws InterruptedException {
 
         SimpleThreadPoolExecutor threadPoolExecutor = new SimpleThreadPoolExecutor(20, 2000);
-        threadPoolExecutor.manageWork(() -> logger.info("work done"));
-        threadPoolExecutor.manageWork(() -> logger.info("work done"));
 
         test(threadPoolExecutor, 1);
     }
