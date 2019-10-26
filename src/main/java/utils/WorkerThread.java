@@ -11,4 +11,8 @@ public class WorkerThread extends Thread {
         this.r = r;
     }
 
+    public void start() {
+        r.run();
+    }
+
 }

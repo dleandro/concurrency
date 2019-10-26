@@ -86,6 +86,9 @@ public class LazyTests<T> {
         for (Thread th : ths) {
             long remaining = Timeouts.remaining(testDeadline);
             th.join(remaining);
+            if (th.isAlive()) {
+                logger.error("Test didn't stop when it was supposed to");
+            }
         }
         return error;
     }

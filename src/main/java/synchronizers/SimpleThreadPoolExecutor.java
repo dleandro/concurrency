@@ -29,76 +29,89 @@ public class SimpleThreadPoolExecutor {
     }
 
     public <T> Result<T> execute(Callable<T> command) throws InterruptedException {
-        monitor.lock();
 
-        try {
+        return new Result<T>() {
 
-            // if the executor is not open to tasks then exception is thrown
-            // else the executor will proceed to create threads or use already available threads
-            // to execute the desired tasks
-            if (state != SynchronizerState.isOpen) {
-                throw new RejectedExecutionException();
-            }
+            NodeLinkedList.Node<WorkerThread> workerThread;
 
-            // check if there are already available threads
-            if (threadPool.isEmpty()) {
-                manageThreads();
-            }
+            private void manageExecutor() {
+                monitor.lock();
 
-            // time to select a thread
-            availableThreads--;
-            NodeLinkedList.Node<WorkerThread> workerThread = threadPool.pull();
-            workerThread.value.start();
+                try {
 
-            return new Result<T>() {
-
-                @Override
-                public boolean isComplete() {
-                    return workerThread.value.hasBeenExecuted;
-                }
-
-                @Override
-                public boolean tryCancel() {
-                    workerThread.value.interrupt();
-
-                    if (workerThread.value.isAlive()) {
-                        return false;
+                    // if the executor is not open to tasks then exception is thrown
+                    // else the executor will proceed to create threads or use already available threads
+                    // to execute the desired tasks
+                    if (state != SynchronizerState.isOpen) {
+                        throw new RejectedExecutionException();
                     }
 
-                    workerThread.value.hasBeenCancelled = true;
-                    return true;
-                }
-
-                @Override
-                public Optional<T> get(int timeout) throws Exception {
-                    final Optional[] result = {Optional.empty()};
-                    final Exception[] exceptionThrown = {null};
-
-                    manageWork(() -> {
-                        try {
-                            result[0] = Optional.of(new Lazy<>(command).get(timeout));
-                        } catch (Exception e) {
-                            exceptionThrown[0] = e;
-                        } finally {
-                            workerThread.value.hasBeenExecuted = true;
-                        }
-                    });
-
-
-                    // wait for task to be executed
-                    while (!workerThread.value.hasBeenExecuted) ;
-
-                    if (exceptionThrown[0] != null) {
-                        throw exceptionThrown[0];
+                    // check if there are already available threads
+                    if (threadPool.isEmpty()) {
+                        manageThreads();
                     }
 
-                    return result[0];
-                }
-            };
+                    // time to select a thread
+                    availableThreads--;
+                    workerThread = threadPool.pull();
+                    workerThread.value.start();
 
-        } finally {
-            monitor.unlock();
-        }
+                } finally {
+                    monitor.unlock();
+                }
+            }
+
+            @Override
+            public boolean isComplete() {
+                return workerThread.value.hasBeenExecuted;
+            }
+
+            @Override
+            public boolean tryCancel() {
+                workerThread.value.interrupt();
+
+                if (workerThread.value.isAlive()) {
+                    return false;
+                }
+
+                workerThread.value.hasBeenCancelled = true;
+                return true;
+            }
+
+            @Override
+            public Optional<T> get(int timeout) throws Exception {
+                final Optional[] result = {Optional.empty()};
+                final Exception[] exceptionThrown = {null};
+
+                manageWork(() -> {
+                    try {
+                        result[0] = Optional.of(new Lazy<>(command).get(timeout));
+                    } catch (Exception e) {
+                        exceptionThrown[0] = e;
+                        System.out.println(exceptionThrown);
+                    } finally {
+                        workerThread.value.hasBeenExecuted = true;
+                    }
+                });
+
+                manageExecutor();
+
+                // if thread has finished we should put it back in the threadPool to avoid creating
+                // more threads for further tasks
+                if (workerThread.value.hasBeenExecuted || workerThread.value.isInterrupted()) {
+                    threadPool.push(workerThread.value);
+                }
+
+                // wait for task to be executed
+                while (!workerThread.value.hasBeenExecuted);
+
+                if (exceptionThrown[0] != null) {
+                    throw exceptionThrown[0];
+                }
+
+                return result[0];
+            }
+        };
     }
 
     private void manageThreads() {
@@ -107,7 +120,7 @@ public class SimpleThreadPoolExecutor {
         if (existingThreads < maxPoolSize && state == SynchronizerState.isOpen) {
             existingThreads++;
             availableThreads++;
-            NodeLinkedList.Node<WorkerThread> threadNode = threadPool.push(ThreadFactory.newWorkerThread(() -> {
+            threadPool.push(ThreadFactory.newWorkerThread(() -> {
 
                 try {
                     monitor.lock();
@@ -167,12 +180,6 @@ public class SimpleThreadPoolExecutor {
                     monitor.unlock();
                 }
             }));
-
-            // if thread has finished we should put it back in the threadPool to avoid creating
-            // more threads for further tasks
-            if (threadNode.value.hasBeenExecuted || threadNode.value.isInterrupted()) {
-                threadPool.push(threadNode.value);
-            }
         }
     }
 
@@ -186,7 +193,6 @@ public class SimpleThreadPoolExecutor {
             condition.signal();
         }
     }
-
 
     private void manageWork(Runnable runnable) {
         monitor.lock();
