@@ -24,20 +24,13 @@ public class NodeLinkedList<T> {
         head.prev = head;
     }
 
-    public Node<T> push(T value) {
+    public Node<T> pushToTail(T value) {
         Node<T> node = new Node<T>(value);
         Node<T> tail = head.prev;
-        node.prev = tail;
+        tail.prev.next = node;
         node.next = head;
+        node.prev = tail.prev;
         head.prev = node;
-        tail.next = node;
-        return node;
-    }
-
-    public Node<T> addToTail(T value) {
-        Node<T> node = new Node<>(value);
-        head.prev = node;
-        node.next = head;
         return node;
     }
 
