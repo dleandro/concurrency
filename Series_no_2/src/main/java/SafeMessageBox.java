@@ -26,9 +26,11 @@ public class SafeMessageBox<M> {
         MsgHolder observedHolder;
         int observedLives;
         M observedMessage;
+        int newLives;
 
         //CAS
-        do {
+        while (true) {
+
             // observe holder so that we can extract its properties later
             observedHolder = msgHolder;
 
@@ -49,13 +51,9 @@ public class SafeMessageBox<M> {
                 return null;
             }
 
-            if (observedLives > 0) {
+            if (msgHolder.lives.compareAndSet(observedLives, observedLives - 1)) {
                 return observedMessage;
             }
-
-        } while (!msgHolder.lives.compareAndSet(observedLives, observedLives - 1));
-
-        return null;
+        }
     }
-
 }

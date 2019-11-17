@@ -28,12 +28,7 @@ public class TransferQueue<E> {
     public void put(E message) {
         // add to tail to make sure that take doesn't signal transfer while consuming put's messages instead of
         // transfer's messages
-        if (transferRequestQueue.isNotEmpty()) {
-            dataQueue.addToTail(message);
-        }
-        else {
-            dataQueue.push(message);
-        }
+        dataQueue.push(message);
     }
 
     public boolean transfer(E message, long timeout) throws InterruptedException {

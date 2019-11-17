@@ -24,13 +24,13 @@ public class NodeLinkedList<T> {
         head.prev = head;
     }
 
-    public Node<T> pushToTail(T value) {
+    public Node<T> push(T value) {
         Node<T> node = new Node<T>(value);
         Node<T> tail = head.prev;
-        tail.prev.next = node;
+        node.prev = tail;
         node.next = head;
-        node.prev = tail.prev;
         head.prev = node;
+        tail.next = node;
         return node;
     }
 
@@ -100,7 +100,7 @@ public class NodeLinkedList<T> {
         return headNode.value != null && contains(pred, headNode.next);
     }
 
-    public void foreach(Consumer<Node<T>> cons, Node<T> firstNodeToIterate) {
+    private void foreach(Consumer<Node<T>> cons, Node<T> firstNodeToIterate) {
 
         if (firstNodeToIterate.value != null) {
             cons.accept(firstNodeToIterate);
