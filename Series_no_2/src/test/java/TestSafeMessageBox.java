@@ -17,8 +17,6 @@ import static org.junit.Assert.assertFalse;
 public class TestSafeMessageBox {
 
     private static final Logger logger = LoggerFactory.getLogger(SafeMessageBox.class);
-    private static final Duration TEST_DURATION = Duration.ofSeconds(60);
-
 
     private void test(Consumer<Integer> publish, Supplier<Integer> consume, int consumeRepetitions,
                       int nOfThreads) throws InterruptedException {
@@ -36,12 +34,11 @@ public class TestSafeMessageBox {
                 th.start();
                 ths.add(th);
                 th.join();
-                continue;
+            } else {
+                Thread th = new Thread(() -> results.add(consume.get()));
+                th.start();
+                ths.add(th);
             }
-
-            Thread th = new Thread(() -> results.add(consume.get()));
-            th.start();
-            ths.add(th);
         }
 
         if (results.stream().filter(Objects::isNull).count() != 1)  {

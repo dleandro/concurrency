@@ -1,5 +1,6 @@
 package utils;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class LockFreeQueue<T> {
@@ -42,28 +43,40 @@ public class LockFreeQueue<T> {
     // if it's necessary to update tail as well, update tail if
     // tail points to head.next node
     // returns null if there aren't any values in queue
-    public T dequeue() {
+    public T dequeueHead() {
 
         Node<T> observedHeadNext;
-        Node<T> observedHeadNextDotNext;
+        Optional<AtomicReference<Node<T>>> newHeadNext;
         Node<T> observedTail;
 
         do {
             observedHeadNext = head.get().next.get();
-            observedHeadNextDotNext = observedHeadNext.next.get();
+            newHeadNext = Optional.of(observedHeadNext.next);
             observedTail = tail.get();
 
             if (observedTail.value == observedHeadNext) {
                 tail.compareAndSet(observedHeadNext, null);
             }
 
-        } while (!head.get().next.compareAndSet(observedHeadNext, observedHeadNextDotNext));
+        } while (!head.get().next.compareAndSet(observedHeadNext, newHeadNext.get()));
 
         return observedHeadNext.value;
 
     }
 
+    // change tail to node before and change tail.prev's next to null
+    public T dequeue() {
+        Node<T> observedTail;
+
+        do {
+            observedTail = tail.get();
+
+        } while (tail.compareAndSet(observedTail, ));
+
+
+    }
+
     public boolean isNotEmpty() {
-        return tail.get().value != null;
+        return dequeue() != null;
     }
 }
