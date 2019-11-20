@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static org.junit.Assert.assertFalse;
@@ -16,29 +17,38 @@ public class TestTransferQueue {
 
     private static final Logger logger = LoggerFactory.getLogger(SafeMessageBox.class);
 
-    private void test(Runnable put, Supplier<Integer> consume, int nOfThreads) throws InterruptedException {
+    private void test(Runnable put, Supplier<Integer> consume, int nOfThreads,
+                      Predicate<Integer> whenTrueRunPut) throws InterruptedException {
 
         final List<Thread> ths = new ArrayList<>();
         final AtomicBoolean error = new AtomicBoolean();
         final AtomicInteger counter = new AtomicInteger(0);
-        final List<Integer> results = new LinkedList<>();
+        final List<Object> results = new LinkedList<>();
 
         for (int i = 0; i < nOfThreads; i++) {
             int observedCounter = counter.incrementAndGet();
 
-            if (observedCounter % 2 == 0) {
-                Thread th = new Thread(put);
+            if (whenTrueRunPut.test(observedCounter)) {
+                Thread th = new Thread(() -> {
+                    put.run();
+                    logger.info("Thread {} finished inserting a message to TransferQueue",
+                            Thread.currentThread().getName());
+                });
                 th.start();
                 ths.add(th);
             } else {
-                Thread th = new Thread(() -> results.add(consume.get()));
+                Thread th = new Thread(() -> {
+                    Object result = consume.get();
+                    results.add(result);
+                    logger.info("Thread {} finished consuming a message from TransferQueue and got {} as a result",
+                            Thread.currentThread().getName(), result);
+                    if (result == null) {
+                        logger.info("Thread {} returned null", Thread.currentThread().getName());
+                    }
+                });
                 th.start();
                 ths.add(th);
             }
-        }
-
-        if (results.stream().anyMatch(Objects::isNull))  {
-            error.set(true);
         }
 
         for (Thread th : ths) {
@@ -48,6 +58,7 @@ public class TestTransferQueue {
             }
         }
 
+        logger.info("{} Threads failed", results.stream().filter(Objects::isNull).count());
         assertFalse(error.get());
 
     }
@@ -59,7 +70,20 @@ public class TestTransferQueue {
         final int[] data = {0};
         final int[] nOfThreads = {20};
 
-        test(() -> tq.put(data[0]++), () -> tq.take(100), nOfThreads[0]);
+        test(() -> tq.put(data[0]++), () -> tq.take(1000), nOfThreads[0],
+                i -> i % 2 == 0);
 
+    }
+
+    @Test
+    public void executeManyPutsBeforeTakes() throws InterruptedException {
+
+        TransferQueue<Integer> tq = new TransferQueue<>();
+
+        final int[] data = {0};
+        final int[] nOfThreads = {30};
+
+        test(() -> tq.put(data[0]++), () -> tq.take(1000), nOfThreads[0],
+                integer -> integer <= 15);
     }
 }

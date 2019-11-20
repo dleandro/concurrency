@@ -30,12 +30,18 @@ public class TestSafeMessageBox {
             int observedCounter = counter.incrementAndGet();
 
             if (observedCounter == 1) {
-                Thread th = new Thread(() -> publish.accept(2));
+                Thread th = new Thread(() -> {
+                    publish.accept(2);
+                    logger.info("Thread {} accepted a message", Thread.currentThread().getName());
+                });
                 th.start();
                 ths.add(th);
                 th.join();
             } else {
-                Thread th = new Thread(() -> results.add(consume.get()));
+                Thread th = new Thread(() -> {
+                    results.add(consume.get());
+                    logger.info("Thread {} consumed a message", Thread.currentThread().getName());
+                });
                 th.start();
                 ths.add(th);
             }

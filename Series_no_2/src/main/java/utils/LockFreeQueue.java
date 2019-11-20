@@ -1,6 +1,5 @@
 package utils;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class LockFreeQueue<T> {
@@ -8,7 +7,7 @@ public class LockFreeQueue<T> {
     static class Node<T> {
         final T value;
         final AtomicReference<Node<T>> next = new AtomicReference<>();
-        public Node(T value) {
+        private Node(T value) {
             this.value = value;
         }
     }
@@ -43,40 +42,41 @@ public class LockFreeQueue<T> {
     // if it's necessary to update tail as well, update tail if
     // tail points to head.next node
     // returns null if there aren't any values in queue
-    public T dequeueHead() {
-
+    public T dequeue() {
+        AtomicReference<T> valueToReturn = new AtomicReference<>();
+        AtomicReference<Node<T>> observedHead;
         Node<T> observedHeadNext;
-        Optional<AtomicReference<Node<T>>> newHeadNext;
-        Node<T> observedTail;
+        AtomicReference<Node<T>> observedTail;
 
+        // loop until dequeue is successful by returning actual value if it's present
+        // or null if queue is empty
         do {
-            observedHeadNext = head.get().next.get();
-            newHeadNext = Optional.of(observedHeadNext.next);
-            observedTail = tail.get();
 
-            if (observedTail.value == observedHeadNext) {
-                tail.compareAndSet(observedHeadNext, null);
+            observedHead = head;
+            observedTail = tail;
+            observedHeadNext = observedHead.get().next.get();
+
+            // is the queue empty or tail isn't on right node
+            if (head == tail) {
+
+                if (observedHeadNext == null) {
+                    // queue is empty
+                    return null;
+                }
+
+                // Cas to update tail
+                tail.compareAndSet(observedTail.get(), observedTail.get().next.get());
+
+            } else {
+                valueToReturn.set(observedHeadNext.value);
             }
 
-        } while (!head.get().next.compareAndSet(observedHeadNext, newHeadNext.get()));
+        } while (!head.compareAndSet(observedHead.get(), observedHeadNext));
 
-        return observedHeadNext.value;
-
-    }
-
-    // change tail to node before and change tail.prev's next to null
-    public T dequeue() {
-        Node<T> observedTail;
-
-        do {
-            observedTail = tail.get();
-
-        } while (tail.compareAndSet(observedTail, ));
-
-
+        return valueToReturn.get();
     }
 
     public boolean isNotEmpty() {
-        return dequeue() != null;
+        return head.get().next != null;
     }
 }
