@@ -38,10 +38,6 @@ public class LockFreeQueue<T> {
         }
     }
 
-    // dequeue head.next, we have to update head.next and check
-    // if it's necessary to update tail as well, update tail if
-    // tail points to head.next node
-    // returns null if there aren't any values in queue
     public T dequeue() {
         AtomicReference<T> valueToReturn = new AtomicReference<>();
         AtomicReference<Node<T>> observedHead;
@@ -57,7 +53,7 @@ public class LockFreeQueue<T> {
             observedHeadNext = observedHead.get().next.get();
 
             // is the queue empty or tail isn't on right node
-            if (head == tail) {
+            if (observedHead == observedTail) {
 
                 if (observedHeadNext == null) {
                     // queue is empty
@@ -77,6 +73,6 @@ public class LockFreeQueue<T> {
     }
 
     public boolean isNotEmpty() {
-        return head.get().next != null;
+        return head.get().next.get() != null;
     }
 }

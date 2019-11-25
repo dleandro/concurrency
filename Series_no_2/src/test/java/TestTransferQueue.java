@@ -58,7 +58,13 @@ public class TestTransferQueue {
             }
         }
 
-        logger.info("{} Threads failed", results.stream().filter(Objects::isNull).count());
+        long numberOfFailedThreads = results.stream().filter(Objects::isNull).count();
+        logger.info("{} Threads failed", numberOfFailedThreads);
+
+        if (numberOfFailedThreads > 0) {
+            error.set(true);
+        }
+
         assertFalse(error.get());
 
     }
@@ -85,5 +91,35 @@ public class TestTransferQueue {
 
         test(() -> tq.put(data[0]++), () -> tq.take(1000), nOfThreads[0],
                 integer -> integer <= 15);
+    }
+
+    @Test
+    public void executeManyTakesBeforePuts() throws InterruptedException {
+
+        TransferQueue<Integer> tq = new TransferQueue<>();
+
+        final int[] data = {0};
+        final int[] nOfThreads = {30};
+
+        test(() -> tq.put(data[0]++), () -> tq.take(1000), nOfThreads[0],
+                integer -> integer >= 15);
+    }
+
+    @Test
+    public void testLossUpdateOnPut() throws InterruptedException {
+        TransferQueue<Integer> tq = new TransferQueue<>();
+
+        final int[] data = {0};
+        final int[] nOfThreads = {2};
+
+        test(() -> tq.put(data[0]++), () -> {
+                    try {
+                        Thread.sleep(2);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    return tq.take(1000);
+                }, nOfThreads[0],
+                integer -> integer % 2 != 0);
     }
 }

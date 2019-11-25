@@ -21,133 +21,133 @@ import java.util.concurrent.atomic.*;
  * from: http://www.cs.rochester.edu/research/synchronization/pseudocode/duals.html
  *
 
-struct cptr {			// counted pointer
-	qnode *ptr;
-	int sn;
-};  // 64-bit datatype
+ struct cptr {			// counted pointer
+ qnode *ptr;
+ int sn;
+ };  // 64-bit datatype
 
-struct ctptr {	// counted tagged pointer
-	qnode *31 ptr;
-	bool is_request;        // tag describes pointed-to node
-    int sn;
-};	// 64-bit datatype
+ struct ctptr {	// counted tagged pointer
+ qnode *31 ptr;
+ bool is_request;        // tag describes pointed-to node
+ int sn;
+ };	// 64-bit datatype
 
-struct qnode {
-	cval data;
-	cptr request;
-	ctptr next;
-};
+ struct qnode {
+ cval data;
+ cptr request;
+ ctptr next;
+ };
 
-struct dualqueue {
-	cptr head;
-	ctptr tail;
-};
+ struct dualqueue {
+ cptr head;
+ ctptr tail;
+ };
 
-void dq_init(dualqueue *Q)
-{
-	qnode *qn = new qnode;
-	qn->next.ptr = NULL;
-	Q->head.ptr = Q->tail.ptr = qn;
-	Q->tail.is_request = FALSE;
-}
+ void dq_init(dualqueue *Q)
+ {
+ qnode *qn = new qnode;
+ qn->next.ptr = NULL;
+ Q->head.ptr = Q->tail.ptr = qn;
+ Q->tail.is_request = FALSE;
+ }
 
-void enqueue(int v, dualqueue *Q)
-{
-	qnode *n = new qnode;
-	n->data = v;
-	n->next.ptr = n->request.ptr = NULL;
-	while (1) {
-		ctptr tail = Q->tail;
-        cptr head = Q->head;
-		if (tail.ptr == head.ptr || !tail.is_request) {
-			// queue empty, tail falling behind, or queue contains data
-			// (queue could also contain exactly one outstanding request with
-			// tail pointer as yet unswung)
-			cptr next = tail.ptr->next;
-			if (tail == Q->tail) {	// tail and next are consistent
-				if (next.ptr != NULL) {	// tail falling behind
-					cas(&Q->tail, tail, {{next.ptr, next.is_request}, tail.sn + 1});
-				} else {	// try to link in the new node
-					if (cas(&tail.ptr->next, next, {{n, FALSE}, next.sn + 1})) {
-						cas(&Q->tail, tail, {{n, FALSE}, tail.sn + 1});
-                        return;
-					}
-				}
-			}
-		} else {	// queue consists of requests
-			ctptr next = head.ptr->next;
-			if (tail == Q->tail) {	// tail has not changed
-				cptr req = head.ptr->request;
-				if (head == Q->head) {	// head, next, and req are consistent
-					bool success = (req.ptr == NULL && cas(&head.ptr->request, req, {n, req.sn + 1}));
-					// try to remove fulfilled request even if it's not mine
-                    cas(&Q->head, head, {next.ptr, head.sn + 1});
-                    if (success)
-						return;
-				}
-			}
-		}
-	}
-}
+ void enqueue(int v, dualqueue *Q)
+ {
+ qnode *n = new qnode;
+ n->data = v;
+ n->next.ptr = n->request.ptr = NULL;
+ while (1) {
+ ctptr tail = Q->tail;
+ cptr head = Q->head;
+ if (tail.ptr == head.ptr || !tail.is_request) {
+ // queue empty, tail falling behind, or queue contains data
+ // (queue could also contain exactly one outstanding request with
+ // tail pointer as yet unswung)
+ cptr next = tail.ptr->next;
+ if (tail == Q->tail) {	// tail and next are consistent
+ if (next.ptr != NULL) {	// tail falling behind
+ cas(&Q->tail, tail, {{next.ptr, next.is_request}, tail.sn + 1});
+ } else {	// try to link in the new node
+ if (cas(&tail.ptr->next, next, {{n, FALSE}, next.sn + 1})) {
+ cas(&Q->tail, tail, {{n, FALSE}, tail.sn + 1});
+ return;
+ }
+ }
+ }
+ } else {	// queue consists of requests
+ ctptr next = head.ptr->next;
+ if (tail == Q->tail) {	// tail has not changed
+ cptr req = head.ptr->request;
+ if (head == Q->head) {	// head, next, and req are consistent
+ bool success = (req.ptr == NULL && cas(&head.ptr->request, req, {n, req.sn + 1}));
+ // try to remove fulfilled request even if it's not mine
+ cas(&Q->head, head, {next.ptr, head.sn + 1});
+ if (success)
+ return;
+ }
+ }
+ }
+ }
+ }
 
-int dequeue(dualqueue *Q{, thread_id r})
-{
-	qnode *n = new qnode;
-	n->is_request = TRUE;
-	n->ptr = n->request = NULL;
+ int dequeue(dualqueue *Q{, thread_id r})
+ {
+ qnode *n = new qnode;
+ n->is_request = TRUE;
+ n->ptr = n->request = NULL;
 
-	while (1) {
-		cptr head  = Q->head;
-		ctptr tail = Q->tail;
-		if (tail.ptr == head.ptr || tail.is_request) {
-			// queue empty, tail falling behind, or queue contains data (queue could also
-			// contain exactly one outstanding request with tail pointer as yet unswung)
-			cptr next = tail.ptr->next;
-			if (tail == Q->tail) {		// tail and next are consistent
-				if (next.ptr != NULL) {	// tail falling behind
-					cas(&Q->tail, tail, {{next.ptr, next.is_request}, tail.sn+1});
-				} else {	// try to link in a request for data
-					if (cas(&tail.ptr->next, next, {{n, TRUE}, next.sn + 1})) {
-						// linked in request; now try to swing tail pointer
-                        cas(&Q->tail, tail, {{n, TRUE}, tail.sn + 1});
+ while (1) {
+ cptr head  = Q->head;
+ ctptr tail = Q->tail;
+ if (tail.ptr == head.ptr || tail.is_request) {
+ // queue empty, tail falling behind, or queue contains data (queue could also
+ // contain exactly one outstanding request with tail pointer as yet unswung)
+ cptr next = tail.ptr->next;
+ if (tail == Q->tail) {		// tail and next are consistent
+ if (next.ptr != NULL) {	// tail falling behind
+ cas(&Q->tail, tail, {{next.ptr, next.is_request}, tail.sn+1});
+ } else {	// try to link in a request for data
+ if (cas(&tail.ptr->next, next, {{n, TRUE}, next.sn + 1})) {
+ // linked in request; now try to swing tail pointer
+ cas(&Q->tail, tail, {{n, TRUE}, tail.sn + 1});
 
-                        // help someone else if I need to
-                        if (head == Q->head && head.ptr->request.ptr != NULL) {
-							cas(&Q->head, head, {head.ptr->next.ptr, head.sn + 1});
-						}
+ // help someone else if I need to
+ if (head == Q->head && head.ptr->request.ptr != NULL) {
+ cas(&Q->head, head, {head.ptr->next.ptr, head.sn + 1});
+ }
 
-						// initial linearization point
-						while (tail.ptr->request.ptr == NULL)
-							;  // spin
-                        // help snip my node
-						head =  Q->head;
-						if (head.ptr == tail.ptr) {
-							cas(&Q->head, head, {n, head.sn + 1});
-						}
-						// data is now available; read it out and go home
-						int result = tail.ptr->request.ptr->data;
-                        delete tail.ptr->request.ptr;
-						delete tail.ptr;
-                        return result;
-					}
-				}
-			}
-		} else {    // queue consists of real data
-			cptr next = head.ptr->next;
-			if (tail == Q->tail) {
-				// head and next are consistent; read result *before* swinging head
-				int result = next.ptr->data;
-                if (cas(&Q->head, head, {next.ptr, head.sn + 1})) {
-                    delete head.ptr;
-					delete n;
-					return result;
-				}
-			}
-		}
-    }
-}
+ // initial linearization point
+ while (tail.ptr->request.ptr == NULL)
+ ;  // spin
+ // help snip my node
+ head =  Q->head;
+ if (head.ptr == tail.ptr) {
+ cas(&Q->head, head, {n, head.sn + 1});
+ }
+ // data is now available; read it out and go home
+ int result = tail.ptr->request.ptr->data;
+ delete tail.ptr->request.ptr;
+ delete tail.ptr;
+ return result;
+ }
+ }
+ }
+ } else {    // queue consists of real data
+ cptr next = head.ptr->next;
+ if (tail == Q->tail) {
+ // head and next are consistent; read result *before* swinging head
+ int result = next.ptr->data;
+ if (cas(&Q->head, head, {next.ptr, head.sn + 1})) {
+ delete head.ptr;
+ delete n;
+ return result;
+ }
+ }
+ }
+ }
+ }
 
-***/
+ ***/
 
 /*
  * Lock-free dualqueue
@@ -186,7 +186,55 @@ public class LockFreeDualQueue_<T> {
 	}
 
 	// enqueue a datum
-	public void enqueue(T v) {}
+	public void enqueue(T v) {
+		QNode<T> newNode = new QNode<>(v, NodeType.DATUM);
+		AtomicReference<QNode<T>> next;
+		AtomicReference<QNode<T>> req;
+		AtomicReference<QNode<T>> observedTail;
+		AtomicReference<QNode<T>> observedHead;
+
+		while (true) {
+			observedHead = head;
+			observedTail = tail;
+
+			if (observedHead == observedTail || observedTail.get().type == NodeType.DATUM) {
+				// queue empty, tail falling behind, or queue contains data (queue could also
+				// contain exactly one outstanding request with tail pointer as yet unswung)
+				next = observedTail.get().next;
+				if (observedTail.get() == tail.get()) {  // tail and next are consistent
+					// tail falling behind
+					if (next != null) {
+						tail.compareAndSet(observedTail.get(), next.get());
+					} else {  // try to link in the new node
+						if (observedTail.get().next.compareAndSet(null, newNode)) {
+							tail.compareAndSet(observedTail.get(), newNode);
+							return;
+						}
+
+					}
+				}
+			} else { // queue consists of requests
+				next = observedHead.get().next;
+
+				if (tail.get() == observedTail.get()) {    // tail has not changed
+					req = observedHead.get().request;
+
+					if (head.get() == observedHead.get()) {    // head, next, and req are consistent
+						boolean success = observedHead.get().request.compareAndSet(req.get(), newNode);
+
+						// try to remove fulfilled request even if it's not mine
+						head.compareAndSet(observedHead.get(), next.get());
+
+						if (success) {
+							return;
+						}
+					}
+				}
+			}
+
+		}
+
+	}
 
 	// dequeue a datum - spinning if necessary
 	public T dequeue() throws InterruptedException {
@@ -209,10 +257,10 @@ public class LockFreeDualQueue_<T> {
 						}
 						if (t.next.compareAndSet(null, n)) {
 							// linked in request; now try to swing tail pointer
-                        	tail.compareAndSet(t, n);
+							tail.compareAndSet(t, n);
 
 							// help someone else if I need to
-                        	if (h == head.get() && h.request.get() != null) {
+							if (h == head.get() && h.request.get() != null) {
 								head.compareAndSet(h, h.next.get());
 							}
 
@@ -222,7 +270,7 @@ public class LockFreeDualQueue_<T> {
 								Thread.sleep(0);  // spin accepting interrupts!!!
 							}
 
-                        	// help snip my node
+							// help snip my node
 							h = head.get();
 							if (h == t) {
 								head.compareAndSet(h, n);
@@ -238,16 +286,16 @@ public class LockFreeDualQueue_<T> {
 				if (t == tail.get()) {
 					// head and next are consistent; read result *before* swinging head
 					T result = hnext.data;
-                	if (head.compareAndSet(h, hnext)) {
+					if (head.compareAndSet(h, hnext)) {
 						return result;
 					}
 				}
 			}
 		} while (true);
-    }
+	}
 
 	public boolean isEmpty() {
-		return true;
+		return head.get().next.get() != null || head.get().next.get().type == NodeType.REQUEST;
 	}
 
 	/**
@@ -302,7 +350,7 @@ public class LockFreeDualQueue_<T> {
 
 				// display consumer thread's results.
 				System.out.printf("%n<--c#%02d exits, consumed: %d, failures: %d",
-								  tid, count, failuresDetected[tid]);
+						tid, count, failuresDetected[tid]);
 				consumptions[tid] = count;
 			});
 			consumers[i].setDaemon(true);
@@ -343,7 +391,7 @@ public class LockFreeDualQueue_<T> {
 					}
 				} while (true);
 				System.out.printf("%n<--p#%02d exits, produced: %d, failures: %d",
-								  tid, count, failuresInjected[tid]);
+						tid, count, failuresInjected[tid]);
 				productions[tid] = count;
 			});
 			producers[i].setDaemon(true);
@@ -393,14 +441,14 @@ public class LockFreeDualQueue_<T> {
 			sumFailuresDetected += failuresDetected[i];
 		}
 		System.out.printf("%n<-- successful: %d/%d, failed: %d/%d%n",
-						  sumProductions, sumConsumptions, sumFailuresInjected, sumFailuresDetected);
+				sumProductions, sumConsumptions, sumFailuresInjected, sumFailuresDetected);
 
 		return sumProductions == sumConsumptions && sumFailuresInjected == sumFailuresDetected;
 	}
 
 	public static void main(String[] args) throws Throwable {
 		System.out.printf("%n--> Test lock free dual queue: %s%n",
-				 		  (testLockFreeDualQueue() ? "passed" : "failed"));
+				(testLockFreeDualQueue() ? "passed" : "failed"));
 	}
 }
 

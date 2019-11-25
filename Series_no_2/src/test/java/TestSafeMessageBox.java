@@ -2,14 +2,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static org.junit.Assert.assertFalse;
@@ -18,36 +16,43 @@ public class TestSafeMessageBox {
 
     private static final Logger logger = LoggerFactory.getLogger(SafeMessageBox.class);
 
-    private void test(Consumer<Integer> publish, Supplier<Integer> consume, int consumeRepetitions,
-                      int nOfThreads) throws InterruptedException {
+    private void test(Runnable publish, Supplier<Integer> consume,
+                      int nOfThreads, Predicate<Long> pred, Predicate<Integer> whenToRunPublish) throws InterruptedException {
 
         final List<Thread> ths = new ArrayList<>();
         final AtomicBoolean error = new AtomicBoolean();
         final AtomicInteger counter = new AtomicInteger(0);
-        final List<Integer> results = new LinkedList<>();
+        final ConcurrentLinkedQueue<Integer> results = new ConcurrentLinkedQueue<>();
 
         for (int i = 0; i < nOfThreads; i++) {
             int observedCounter = counter.incrementAndGet();
 
-            if (observedCounter == 1) {
+            if (whenToRunPublish.test(observedCounter)) {
                 Thread th = new Thread(() -> {
-                    publish.accept(2);
-                    logger.info("Thread {} accepted a message", Thread.currentThread().getName());
+                    publish.run();
+                    logger.info("Thread {} published a message", Thread.currentThread().getName());
                 });
                 th.start();
-                ths.add(th);
                 th.join();
             } else {
                 Thread th = new Thread(() -> {
-                    results.add(consume.get());
-                    logger.info("Thread {} consumed a message", Thread.currentThread().getName());
+                    int result = 0;
+                    try {
+                        result = consume.get();
+                    } catch (Exception e) {
+                        logger.info("lives were extinguished");
+                    }
+                    if (result != 0) {
+                        results.add(result);
+                    }
+                    logger.info("Thread {} consumed a message and got {}", Thread.currentThread().getName(), result);
                 });
                 th.start();
                 ths.add(th);
             }
         }
 
-        if (results.stream().filter(Objects::isNull).count() != 1)  {
+        if (pred.test((long) results.size()))  {
             error.set(true);
         }
 
@@ -67,9 +72,32 @@ public class TestSafeMessageBox {
     public void overLoadLivesOnSafeMessageBox() throws InterruptedException {
 
         SafeMessageBox<Integer> smb = new SafeMessageBox<>();
+        final int[] valuesToPublish = {1};
 
-        test(message -> smb.publish(message, 10),
-                smb::tryConsume, 11, 12);
+        test(() -> smb.publish(valuesToPublish[0], 20),
+                smb::tryConsume, 22, (resultsSize) -> resultsSize == 20,
+                counter -> counter == 1);
+    }
 
+    @Test
+    public void useLessLivesThanExistingOnes() throws InterruptedException {
+
+        SafeMessageBox<Integer> smb = new SafeMessageBox<>();
+        final int[] valuesToPublish = {1};
+
+        test(() -> smb.publish(valuesToPublish[0], 30),
+                smb::tryConsume, 20, (resultsSize) -> resultsSize == 19,
+                counter -> counter == 1);
+    }
+
+    @Test
+    public void changeMessageMidway() throws InterruptedException {
+
+        SafeMessageBox<Integer> smb = new SafeMessageBox<>();
+        final int[] valuesToPublish = {1};
+
+        test(() -> smb.publish(valuesToPublish[0], 15),
+                smb::tryConsume, 30, resultsSize -> resultsSize == 28,
+                counter -> counter == 1 || counter == 16);
     }
 }
