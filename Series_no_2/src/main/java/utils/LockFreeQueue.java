@@ -40,17 +40,17 @@ public class LockFreeQueue<T> {
 
     public T dequeue() {
         AtomicReference<T> valueToReturn = new AtomicReference<>();
-        AtomicReference<Node<T>> observedHead;
+        Node<T> observedHead;
         Node<T> observedHeadNext;
-        AtomicReference<Node<T>> observedTail;
+        Node<T> observedTail;
 
         // loop until dequeue is successful by returning actual value if it's present
         // or null if queue is empty
         do {
 
-            observedHead = head;
-            observedTail = tail;
-            observedHeadNext = observedHead.get().next.get();
+            observedHead = head.get();
+            observedTail = tail.get();
+            observedHeadNext = observedHead.next.get();
 
             // is the queue empty or tail isn't on right node
             if (observedHead == observedTail) {
@@ -61,13 +61,13 @@ public class LockFreeQueue<T> {
                 }
 
                 // Cas to update tail
-                tail.compareAndSet(observedTail.get(), observedTail.get().next.get());
+                tail.compareAndSet(observedTail, observedTail.next.get());
 
             } else {
                 valueToReturn.set(observedHeadNext.value);
             }
 
-        } while (!head.compareAndSet(observedHead.get(), observedHeadNext));
+        } while (!head.compareAndSet(observedHead, observedHeadNext));
 
         return valueToReturn.get();
     }

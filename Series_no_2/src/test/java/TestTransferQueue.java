@@ -1,6 +1,7 @@
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.Timeouts;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -30,29 +31,48 @@ public class TestTransferQueue {
 
             if (whenTrueRunPut.test(observedCounter)) {
                 Thread th = new Thread(() -> {
-                    put.run();
-                    logger.info("Thread {} finished inserting a message to TransferQueue",
-                            Thread.currentThread().getName());
+                    long limit = Timeouts.start(2000);
+                    long remaining;
+
+                    do {
+
+                        put.run();
+                        logger.info("Thread {} finished inserting a message to TransferQueue",
+                                Thread.currentThread().getName());
+
+                        remaining = Timeouts.remaining(limit);
+
+                    } while (Timeouts.isTimeout(remaining));
                 });
                 th.start();
                 ths.add(th);
             } else {
                 Thread th = new Thread(() -> {
-                    Object result = consume.get();
-                    results.add(result);
-                    logger.info("Thread {} finished consuming a message from TransferQueue and got {} as a result",
-                            Thread.currentThread().getName(), result);
-                    if (result == null) {
-                        logger.info("Thread {} returned null", Thread.currentThread().getName());
-                    }
+                    long limit = Timeouts.start(2000);
+                    long remaining;
+
+                    do {
+
+                        Object result = consume.get();
+                        results.add(result);
+                        logger.info("Thread {} finished consuming a message from TransferQueue and got {} as a result",
+                                Thread.currentThread().getName(), result);
+                        if (result == null) {
+                            logger.info("Thread {} returned null", Thread.currentThread().getName());
+                        }
+                        remaining = Timeouts.remaining(limit);
+
+                    } while (Timeouts.isTimeout(remaining));
+
                 });
                 th.start();
                 ths.add(th);
             }
         }
 
+        Thread.sleep(2000);
         for (Thread th : ths) {
-            th.join(1000);
+            th.join(10000);
             if (th.isAlive()) {
                 logger.error("Test didn't stop when it was supposed to");
             }

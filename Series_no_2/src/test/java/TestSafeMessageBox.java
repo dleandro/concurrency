@@ -1,6 +1,7 @@
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.junit.Test;
+import utils.Timeouts;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,7 @@ public class TestSafeMessageBox {
     private static final Logger logger = LoggerFactory.getLogger(SafeMessageBox.class);
 
     private void test(Runnable publish, Supplier<Integer> consume,
-                      int nOfThreads, Predicate<Long> pred, Predicate<Integer> whenToRunPublish) throws InterruptedException {
+                      int nOfThreads, Predicate<Long> success, Predicate<Integer> whenToRunPublish) throws InterruptedException {
 
         final List<Thread> ths = new ArrayList<>();
         final AtomicBoolean error = new AtomicBoolean();
@@ -29,38 +30,57 @@ public class TestSafeMessageBox {
 
             if (whenToRunPublish.test(observedCounter)) {
                 Thread th = new Thread(() -> {
-                    publish.run();
-                    logger.info("Thread {} published a message", Thread.currentThread().getName());
+                    long limit = Timeouts.start(2000);
+                    long remaining;
+
+                    do {
+                        publish.run();
+                        logger.info("Thread {} published a message", Thread.currentThread().getName());
+
+                        remaining = Timeouts.remaining(limit);
+                    } while (Timeouts.isTimeout(remaining));
                 });
                 th.start();
                 th.join();
             } else {
                 Thread th = new Thread(() -> {
-                    int result = 0;
-                    try {
-                        result = consume.get();
-                    } catch (Exception e) {
-                        logger.info("lives were extinguished");
-                    }
-                    if (result != 0) {
-                        results.add(result);
-                    }
-                    logger.info("Thread {} consumed a message and got {}", Thread.currentThread().getName(), result);
+
+                    long limit = Timeouts.start(2000);
+                    long remaining;
+
+                    do {
+
+                        int result = 0;
+                        try {
+                            result = consume.get();
+                        } catch (Exception e) {
+                            logger.info("lives were extinguished");
+                        }
+                        if (result != 0) {
+                            results.add(result);
+                        }
+                        logger.info("Thread {} consumed a message and got {}", Thread.currentThread().getName(), result);
+
+                        remaining = Timeouts.remaining(limit);
+                    } while (Timeouts.isTimeout(remaining));
                 });
                 th.start();
                 ths.add(th);
             }
         }
 
-        if (pred.test((long) results.size()))  {
-            error.set(true);
-        }
+
+        Thread.sleep(2000);
 
         for (Thread th : ths) {
             th.join(1000);
             if (th.isAlive()) {
                 logger.error("Test didn't stop when it was supposed to");
             }
+        }
+
+        if (!success.test((long) results.size()))  {
+            error.set(true);
         }
 
         assertFalse(error.get());
@@ -75,7 +95,7 @@ public class TestSafeMessageBox {
         final int[] valuesToPublish = {1};
 
         test(() -> smb.publish(valuesToPublish[0], 20),
-                smb::tryConsume, 22, (resultsSize) -> resultsSize == 20,
+                smb::tryConsume, 22, resultsSize -> resultsSize == 20,
                 counter -> counter == 1);
     }
 

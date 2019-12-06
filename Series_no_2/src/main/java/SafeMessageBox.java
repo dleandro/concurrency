@@ -5,11 +5,11 @@ public class SafeMessageBox<M> {
 
     private class MsgHolder {
         private final M msg;
-        private AtomicInteger lives;
+        private int lives;
 
         MsgHolder(M msg, int lvs) {
             this.msg = msg;
-            this.lives = new AtomicInteger(lvs);
+            this.lives = lvs;
         }
     }
 
@@ -24,7 +24,7 @@ public class SafeMessageBox<M> {
     // consume a message if MsgHolder isn't null and its lives are bigger than 0
     public M tryConsume() {
         MsgHolder newHolder;
-        AtomicReference<MsgHolder> observedHolder;
+        MsgHolder observedHolder;
         int observedLives;
         M observedMessage;
 
@@ -32,7 +32,7 @@ public class SafeMessageBox<M> {
 
             // observe holder so that we can extract its properties later making sure that we don't change
             // properties of an already changed msgHolder
-            observedHolder = msgHolder;
+            observedHolder = msgHolder.get();
 
             // check if there is any msg to be consumed
             if (observedHolder == null) {
@@ -40,10 +40,10 @@ public class SafeMessageBox<M> {
             }
 
             // observe number of lives and message to be consumed
-            observedLives = observedHolder.get().lives.get();
-            observedMessage = observedHolder.get().msg;
+            observedLives = observedHolder.lives;
+            observedMessage = observedHolder.msg;
 
-            // check if number of lives is 1, if so we can´t consume message
+            // check if number of lives is 0, if so we can´t consume message
             // and we should change msgHolder value to assure that the next thread exits
             // as early as possible without consuming message
             if (observedLives == 0) {
@@ -54,7 +54,7 @@ public class SafeMessageBox<M> {
             newHolder = new MsgHolder(observedMessage, observedLives - 1);
 
             // decrement lives and consume message only if msgHolder is still equal to the observed one
-            if (msgHolder.compareAndSet(observedHolder.get(), newHolder)) {
+            if (msgHolder.compareAndSet(observedHolder, newHolder)) {
                 return observedMessage;
             }
         }
