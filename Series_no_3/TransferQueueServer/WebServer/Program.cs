@@ -12,31 +12,9 @@ namespace WebServer
     class Program
     {
         
-        // Represents a request
-        public class Request
-        {
-            public string Method { get; set; }
-            
-            public string Path { get; set; }
-            public JObject Headers { get; set; }
-            public JObject Payload { get; set; }
-
-            public override string ToString()
-            {
-                return $"Method: {Method}, Path: {Path}, Headers: {Headers}, Payload: {Payload}";
-            }
-        }
-        
-        // represents a response
-        public class Response
-        {
-            public int Status { get; set; }
-            public JObject Headers { get; set; }
-            public JObject Payload { get; set; }
-        }
-        
         private const int port = 8081;
         private static int counter;
+        private static Router r;
         
         static async Task Main(string[] args)
         {
@@ -44,6 +22,7 @@ namespace WebServer
             var terminator = new Terminator();
             var cts = new CancellationTokenSource();
             var ct = cts.Token;
+            r.InitializeRouterMethods();
             Console.CancelKeyPress += (obj, eargs) =>
             {
                 Log("CancelKeyPress, stopping server");
@@ -75,6 +54,84 @@ namespace WebServer
                 Log("waiting shutdown");
                 await terminator.Shutdown();
             }
+        }
+        
+        private static readonly JsonSerializer serializer = new JsonSerializer();
+
+        private static async void Handle(int id, TcpClient client, CancellationToken ct, Terminator terminator)
+        {
+             using (terminator.Enter()) 
+             {
+                try
+                {
+                    using (client)
+                    {
+                        var stream = client.GetStream();
+                        var reader = new JsonTextReader(new StreamReader(stream))
+                        {
+                            // To support reading multiple top-level objects
+                            SupportMultipleContent = true
+                        };
+                        var writer = new JsonTextWriter(new StreamWriter(stream));
+                        while (true)
+                        {
+                            try
+                            {
+                                // to consume any bytes until start of object ('{')
+                                do
+                                {
+                                    await reader.ReadAsync(ct);
+                                    Log($"advanced to {reader.TokenType}");
+                                } while (reader.TokenType != JsonToken.StartObject
+                                         && reader.TokenType != JsonToken.None);
+
+                                if (reader.TokenType == JsonToken.None)
+                                {
+                                    Log($"[{id}] reached end of input stream, ending.");
+                                    return;
+                                }
+
+                                Log("Reading object");
+                                var json = await JObject.LoadAsync(reader, ct);
+                                Log($"Object read, {ct.IsCancellationRequested}");
+                                var request = json.ToObject<ServerObjects.Request>();
+                                ServerObjects.Response response = null;
+                                
+                                var methodToExecute = r.HandleRequest(request.Method);
+                                // execute right function returned by router or if the router couldn't find a function
+                                // return a status code indicating request not found
+                                response = methodToExecute != null
+                                    ? methodToExecute.ReqExecutor(request, ct)
+                                    : new ServerObjects.Response{Status = 405};
+                                
+                                serializer.Serialize(writer, response);
+                                await writer.FlushAsync(ct);
+                            }
+                            catch (JsonReaderException e)
+                            {
+                                Log($"[{id}] Error reading JSON: {e.Message}, ending");
+                                var response = new ServerObjects.Response
+                                {
+                                    Status = 400,
+                                };
+                                serializer.Serialize(writer, response);
+                                await writer.FlushAsync(ct);
+                                // close the connection because an error may not be recoverable by the reader
+                                return;
+                            }
+                            catch (Exception e)
+                            {
+                                Log($"[{id}] Exception: {e.Message}, ending");
+                                return;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    Log($"Ended connection {id}");
+                } 
+             }
         }
 
         private static void Log(string s)
