@@ -1,10 +1,10 @@
 ﻿{
   "version": "1.0.0",
   "restore": {
-    "projectUniqueName": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Synchronizers/Synchronizers.csproj",
-    "projectName": "Synchronizers",
-    "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Synchronizers/Synchronizers.csproj",
-    "outputPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Synchronizers/obj/",
+    "projectUniqueName": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj",
+    "projectName": "Utils",
+    "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj",
+    "outputPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/obj/",
     "projectStyle": "PackageReference",
     "fallbackFolders": [
       "/usr/local/share/dotnet/sdk/NuGetFallbackFolder"
@@ -17,11 +17,7 @@
     },
     "frameworks": {
       "netcoreapp2.2": {
-        "projectReferences": {
-          "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj": {
-            "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj"
-          }
-        }
+        "projectReferences": {}
       }
     },
     "warningProperties": {
@@ -38,6 +34,10 @@
           "target": "Package",
           "version": "[2.2.0, )",
           "autoReferenced": true
+        },
+        "Newtonsoft.Json": {
+          "target": "Package",
+          "version": "[12.0.3, )"
         }
       },
       "imports": [

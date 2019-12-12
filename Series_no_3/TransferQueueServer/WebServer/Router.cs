@@ -16,11 +16,11 @@ namespace WebServer
         {
             _methods = new []
             {
-                new Method(Server.ExecuteCreate, "CREATE"),
-                new Method(Server.ExecutePut, "PUT"),
-                new Method(Server.ExecuteTransfer, "TRANSFER"),
-                new Method(Server.ExecuteTake, "TAKE"),
-                new Method(Server.ExecuteShutdown, "SHUTDOWN"), 
+                new Method(ServerFunctionalities.ExecuteCreate, "CREATE"),
+                new Method(ServerFunctionalities.ExecutePut, "PUT"),
+                new Method(ServerFunctionalities.ExecuteTransfer, "TRANSFER"),
+                new Method(ServerFunctionalities.ExecuteTake, "TAKE"),
+                new Method(ServerFunctionalities.ExecuteShutdown, "SHUTDOWN"), 
             };
         }
     }

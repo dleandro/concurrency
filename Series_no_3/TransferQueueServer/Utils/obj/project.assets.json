@@ -216,32 +216,6 @@
         "runtime": {
           "lib/netstandard2.0/Newtonsoft.Json.dll": {}
         }
-      },
-      "Synchronizers/1.0.0": {
-        "type": "project",
-        "framework": ".NETCoreApp,Version=v2.2",
-        "dependencies": {
-          "Utils": "1.0.0"
-        },
-        "compile": {
-          "bin/placeholder/Synchronizers.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/Synchronizers.dll": {}
-        }
-      },
-      "Utils/1.0.0": {
-        "type": "project",
-        "framework": ".NETCoreApp,Version=v2.2",
-        "dependencies": {
-          "Newtonsoft.Json": "12.0.3"
-        },
-        "compile": {
-          "bin/placeholder/Utils.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/Utils.dll": {}
-        }
       }
     }
   },
@@ -744,24 +718,12 @@
         "newtonsoft.json.nuspec",
         "packageIcon.png"
       ]
-    },
-    "Synchronizers/1.0.0": {
-      "type": "project",
-      "path": "../Synchronizers/Synchronizers.csproj",
-      "msbuildProject": "../Synchronizers/Synchronizers.csproj"
-    },
-    "Utils/1.0.0": {
-      "type": "project",
-      "path": "../Utils/Utils.csproj",
-      "msbuildProject": "../Utils/Utils.csproj"
     }
   },
   "projectFileDependencyGroups": {
     ".NETCoreApp,Version=v2.2": [
       "Microsoft.NETCore.App >= 2.2.0",
-      "Newtonsoft.Json >= 12.0.3",
-      "Synchronizers >= 1.0.0",
-      "Utils >= 1.0.0"
+      "Newtonsoft.Json >= 12.0.3"
     ]
   },
   "packageFolders": {
@@ -771,11 +733,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/WebServer/WebServer.csproj",
-      "projectName": "WebServer",
-      "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/WebServer/WebServer.csproj",
+      "projectUniqueName": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj",
+      "projectName": "Utils",
+      "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj",
       "packagesPath": "/Users/diogo/.nuget/packages/",
-      "outputPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/WebServer/obj/",
+      "outputPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/obj/",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "/usr/local/share/dotnet/sdk/NuGetFallbackFolder"
@@ -791,14 +753,7 @@
       },
       "frameworks": {
         "netcoreapp2.2": {
-          "projectReferences": {
-            "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Synchronizers/Synchronizers.csproj": {
-              "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Synchronizers/Synchronizers.csproj"
-            },
-            "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj": {
-              "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj"
-            }
-          }
+          "projectReferences": {}
         }
       },
       "warningProperties": {

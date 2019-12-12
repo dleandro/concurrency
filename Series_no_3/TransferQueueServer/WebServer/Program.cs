@@ -95,16 +95,17 @@ namespace WebServer
                                 var json = await JObject.LoadAsync(reader, ct);
                                 Log($"Object read, {ct.IsCancellationRequested}");
                                 var request = json.ToObject<ServerObjects.Request>();
-                                ServerObjects.Response response = null;
+                                Task<ServerObjects.Response> response = null;
                                 
                                 var methodToExecute = r.HandleRequest(request.Method);
                                 // execute right function returned by router or if the router couldn't find a function
                                 // return a status code indicating request not found
                                 response = methodToExecute != null
                                     ? methodToExecute.ReqExecutor(request, ct)
-                                    : new ServerObjects.Response{Status = 405};
+                                    : new Task<ServerObjects.Response>(
+                                        () => new ServerObjects.Response{Status = 405});
                                 
-                                serializer.Serialize(writer, response);
+                                serializer.Serialize(writer, await response);
                                 await writer.FlushAsync(ct);
                             }
                             catch (JsonReaderException e)

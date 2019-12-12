@@ -17,7 +17,14 @@
     },
     "frameworks": {
       "netcoreapp2.2": {
-        "projectReferences": {}
+        "projectReferences": {
+          "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Synchronizers/Synchronizers.csproj": {
+            "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Synchronizers/Synchronizers.csproj"
+          },
+          "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj": {
+            "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj"
+          }
+        }
       }
     },
     "warningProperties": {

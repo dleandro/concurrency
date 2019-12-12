@@ -1,31 +1,41 @@
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using Synchronizers;
 
 namespace WebServer
 {
-    public class Server
+    public class ServerFunctionalities
     {
-        public static ServerObjects.Response ExecuteCreate(ServerObjects.Request arg1, CancellationToken arg2)
+        private static readonly ConcurrentQueue<TransferQueue<JObject>> Queues = new ConcurrentQueue<TransferQueue<JObject>>();
+
+        public static Task<ServerObjects.Response> ExecuteCreate(ServerObjects.Request request, CancellationToken ct)
+        {
+            // Create and add a transferQueue to our Queues, has to be thread-safe
+            Queues.Enqueue(new TransferQueue<JObject> {Name = request.Path});
+
+            return new Task<ServerObjects.Response>(() => new ServerObjects.Response());
+        }
+
+        public static Task<ServerObjects.Response> ExecutePut(ServerObjects.Request arg1, CancellationToken arg2)
         {
             throw new System.NotImplementedException();
         }
 
-        public static ServerObjects.Response ExecutePut(ServerObjects.Request arg1, CancellationToken arg2)
+        public static Task<ServerObjects.Response> ExecuteTransfer(ServerObjects.Request arg1, CancellationToken arg2)
         {
             throw new System.NotImplementedException();
         }
 
-        public static ServerObjects.Response ExecuteTransfer(ServerObjects.Request arg1, CancellationToken arg2)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public static ServerObjects.Response ExecuteTake(ServerObjects.Request arg1, CancellationToken arg2)
+        public static Task<ServerObjects.Response> ExecuteTake(ServerObjects.Request arg1, CancellationToken arg2)
         {
             throw new System.NotImplementedException();
         }
         
-        public async Task<ServerObjects.Response> ExecuteShutdown(ServerObjects.Request request, CancellationToken ct)
+        public static async Task<ServerObjects.Response> ExecuteShutdown(ServerObjects.Request request, CancellationToken ct)
         {
             if (ct.CanBeCanceled)
             {
@@ -34,24 +44,7 @@ namespace WebServer
                 ct = cts.Token;
                 cts.Cancel();
             }
-        }
-        
-        private static async Task<ServerObjects.Response> Delay(ServerObjects.Request request)
-        {
-            var delayString = request.Headers["timeout"] ?? "1000";
-            if (!int.TryParse((string) delayString, out var delay))
-            {
-                return new ServerObjects.Response
-                {
-                    Status = 400
-                };
-            }
-
-            await Task.Delay(delay);
-            return new ServerObjects.Response
-            {
-                Status = 200
-            };
+            return new ServerObjects.Response();
         }
     }
 }
