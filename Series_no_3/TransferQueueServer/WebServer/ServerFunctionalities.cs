@@ -5,46 +5,52 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using Synchronizers;
+using static WebServer.ServerObjects;
 
 namespace WebServer
 {
     public class ServerFunctionalities
     {
         private static readonly ConcurrentQueue<TransferQueue<JObject>> Queues = new ConcurrentQueue<TransferQueue<JObject>>();
+        //private IAsyncEnumerable<ConcurrentQueue<JObject>> queues; 
 
-        public static Task<ServerObjects.Response> ExecuteCreate(ServerObjects.Request request, CancellationToken ct)
+        public static Task<Response> ExecuteCreate(Request request, CancellationToken ct)
         {
             // Create and add a transferQueue to our Queues, has to be thread-safe
             Queues.Enqueue(new TransferQueue<JObject> {Name = request.Path});
 
-            return new Task<ServerObjects.Response>(() => new ServerObjects.Response());
+            return new Task<Response>(() => new Response());
         }
 
-        public static Task<ServerObjects.Response> ExecutePut(ServerObjects.Request arg1, CancellationToken arg2)
+        public static Task<Response> ExecutePut(Request arg1, CancellationToken arg2)
         {
             throw new System.NotImplementedException();
         }
 
-        public static Task<ServerObjects.Response> ExecuteTransfer(ServerObjects.Request arg1, CancellationToken arg2)
+        public static Task<Response> ExecuteTransfer(Request arg1, CancellationToken arg2)
         {
             throw new System.NotImplementedException();
         }
 
-        public static Task<ServerObjects.Response> ExecuteTake(ServerObjects.Request arg1, CancellationToken arg2)
+        public static Task<Response> ExecuteTake(Request arg1, CancellationToken arg2)
         {
             throw new System.NotImplementedException();
         }
         
-        public static async Task<ServerObjects.Response> ExecuteShutdown(ServerObjects.Request request, CancellationToken ct)
+        public static async Task<Response> ExecuteShutdown(Request request, CancellationToken ct)
         {
             if (ct.CanBeCanceled)
             {
                 // start wait until it is cancelled
-                var cts = new CancellationTokenSource();
-                ct = cts.Token;
-                cts.Cancel();
+                using (var cts = new CancellationTokenSource())
+                {
+                    ct = cts.Token;
+                    cts.Cancel();
+                    
+                }                
+               
             }
-            return new ServerObjects.Response();
+            return new Response();
         }
     }
 }
