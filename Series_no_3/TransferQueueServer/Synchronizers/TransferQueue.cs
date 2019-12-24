@@ -40,14 +40,14 @@ namespace Synchronizers
         
         private bool Transfer(T message)
         {
-            
+            throw new System.NotImplementedException();
         }
 
         private T Take()
         {
-            
+            throw new System.NotImplementedException();
         }
-        
+
     }
 
 }
