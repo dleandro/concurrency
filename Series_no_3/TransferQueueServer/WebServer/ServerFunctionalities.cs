@@ -12,17 +12,15 @@ namespace WebServer
     public class ServerFunctionalities
     {
         private static readonly ConcurrentQueue<TransferQueue<JObject>> Queues = new ConcurrentQueue<TransferQueue<JObject>>();
+
        // private static IAsyncEnumerable<ConcurrentQueue<JObject>> queues;
 
-        public static Task<Response> ExecuteCreate(Request request, CancellationToken ct)
-        {
-            // Create and add a transferQueue to our Queues, has to be thread-safe
+        public static Task<Response> ExecuteCreate(Request request, CancellationToken ct) => new Task<Response>(() => 
+        { 
             Queues.Enqueue(new TransferQueue<JObject> { Name = request.Path });
-
-           // queues = of(new ConcurrentQueue<JObject>(new List<JObject>() { JObject.Parse($" 'Name' : '{request.Path}' ") }));
-
-            return new Task<Response>(() => new Response());
-        }
+            return new Response();
+        });
+        
 
         public static Task<Response> ExecutePut(Request arg1, CancellationToken arg2)
         {

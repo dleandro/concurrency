@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj": {}
+    "C:\\Users\\Matias\\Desktop\\pc\\concurrency\\Series_no_3\\TransferQueueServer\\Utils\\Utils.csproj": {}
   },
   "projects": {
-    "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj": {
+    "C:\\Users\\Matias\\Desktop\\pc\\concurrency\\Series_no_3\\TransferQueueServer\\Utils\\Utils.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj",
+        "projectUniqueName": "C:\\Users\\Matias\\Desktop\\pc\\concurrency\\Series_no_3\\TransferQueueServer\\Utils\\Utils.csproj",
         "projectName": "Utils",
-        "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/Utils.csproj",
-        "packagesPath": "/Users/diogo/.nuget/packages/",
-        "outputPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/TransferQueueServer/Utils/obj/",
+        "projectPath": "C:\\Users\\Matias\\Desktop\\pc\\concurrency\\Series_no_3\\TransferQueueServer\\Utils\\Utils.csproj",
+        "packagesPath": "C:\\Users\\Matias\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Matias\\Desktop\\pc\\concurrency\\Series_no_3\\TransferQueueServer\\Utils\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "/usr/local/share/dotnet/sdk/NuGetFallbackFolder"
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
         ],
         "configFilePaths": [
-          "/Users/diogo/.config/NuGet/NuGet.Config"
+          "C:\\Users\\Matias\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "netcoreapp2.2"
@@ -51,10 +51,16 @@
             }
           },
           "imports": [
-            "net461"
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
           ],
           "assetTargetFallback": true,
-          "warn": true
+          "warn": true,
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\3.1.100\\RuntimeIdentifierGraph.json"
         }
       }
     }
