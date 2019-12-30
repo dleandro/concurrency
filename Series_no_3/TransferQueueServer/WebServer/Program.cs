@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Utils;
 
 namespace WebServer
 {
@@ -103,7 +104,7 @@ namespace WebServer
                                 response = methodToExecute != null
                                     ? methodToExecute.ReqExecutor(request, ct)
                                     : new Task<ServerObjects.Response>(
-                                        () => new ServerObjects.Response{Status = 405});
+                                        () => new ServerObjects.Response{Status = (int) StatusCodes.NO_OP});
                                 
                                 serializer.Serialize(writer, await response);
                                 await writer.FlushAsync(ct);

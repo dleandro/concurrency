@@ -2,8 +2,21 @@
 <project version="4">
   <component name="ContentModelStore">
     <e p="$PROJECT_DIR$" t="IncludeFlat">
+      <e p="ClientApp" t="IncludeRecursive">
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="ClientApp.csproj" t="IncludeRecursive" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="netcoreapp2.2" t="Include">
+              <e p="ClientApp.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+        <e p="Program.cs" t="Include" />
+      </e>
       <e p="packages" t="ExcludeRecursive" />
       <e p="Synchronizers" t="IncludeRecursive">
+        <e p="AsyncSemaphore.cs" t="Include" />
         <e p="bin" t="ExcludeRecursive" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Debug" t="Include">
@@ -19,6 +32,8 @@
       <e p="Utils" t="IncludeRecursive">
         <e p="BaseRequest.cs" t="Include" />
         <e p="bin" t="ExcludeRecursive" />
+        <e p="ConsumerBase.cs" t="Include" />
+        <e p="Counter.cs" t="Include" />
         <e p="Method.cs" t="Include" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Debug" t="Include">
@@ -28,6 +43,7 @@
           </e>
         </e>
         <e p="ServerObjects.cs" t="Include" />
+        <e p="StatusCodes.cs" t="Include" />
         <e p="Utils.csproj" t="IncludeRecursive" />
       </e>
       <e p="WebServer" t="IncludeRecursive">

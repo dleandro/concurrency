@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Synchronizers", "Synchroniz
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utils", "Utils\Utils.csproj", "{0CA5C218-AF46-4738-877D-20EEA9C71166}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientApp", "ClientApp\ClientApp.csproj", "{5F704587-A94C-4A37-B00D-062D6ED636A4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{0CA5C218-AF46-4738-877D-20EEA9C71166}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CA5C218-AF46-4738-877D-20EEA9C71166}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CA5C218-AF46-4738-877D-20EEA9C71166}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F704587-A94C-4A37-B00D-062D6ED636A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F704587-A94C-4A37-B00D-062D6ED636A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F704587-A94C-4A37-B00D-062D6ED636A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F704587-A94C-4A37-B00D-062D6ED636A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

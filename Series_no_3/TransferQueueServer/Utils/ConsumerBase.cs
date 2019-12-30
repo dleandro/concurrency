@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Utils
+namespace Examples
 {
     /**
      * Base class for consumer nodes used on asynchronous operation
@@ -9,8 +9,7 @@ namespace Utils
      * - Used to obtain the Task associated to the pending operation
      * - Used by completion code to complete this Task
      */
-       
-    public class BaseRequest<T> : TaskCompletionSource<T>
+    public class ConsumerBase<T> : TaskCompletionSource<T>
     {
         private int _acquired = 0;
 
@@ -26,5 +25,4 @@ namespace Utils
             return Interlocked.CompareExchange(ref _acquired, 1, 0) == 0;
         }
     }
-    
 }
