@@ -4,8 +4,10 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Examples;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Synchronizers;
 using Utils;
 
 namespace WebServer
@@ -13,17 +15,20 @@ namespace WebServer
     class Program
     {
         
-        private const int port = 8081;
-        private static int counter;
-        private static Router r;
+        private const int Port = 8081;
+        private static int _counter;
+        private static readonly Router R =  new Router();
+        // Starts a Semaphore that lets 5 threads to initialize our server,
+        // the 6th thread will have to wait for a release
+        private static readonly Semaphore ConnectionsCounter = new Semaphore(5, 5);
         
         static async Task Main(string[] args)
         {
-            var listener = new TcpListener(IPAddress.Loopback, port);
+            var listener = new TcpListener(IPAddress.Loopback, Port);
             var terminator = new Terminator();
             var cts = new CancellationTokenSource();
             var ct = cts.Token;
-            r.InitializeRouterMethods();
+            R.InitializeRouterMethods();
             Console.CancelKeyPress += (obj, eargs) =>
             {
                 Log("CancelKeyPress, stopping server");
@@ -32,8 +37,8 @@ namespace WebServer
                 eargs.Cancel = true;
             };
             listener.Start();
-            Log($"Listening on {port}");
-            using (ct.Register(() => { listener.Stop(); }))
+            Log($"Listening on {Port}");
+            using (ct.Register(() => listener.Stop()))
             {
                 try
                 {
@@ -41,7 +46,8 @@ namespace WebServer
                     {
                         Log("Accepting new TCP client");
                         var client = await listener.AcceptTcpClientAsync();
-                        var id = counter++;
+                        ConnectionsCounter.WaitOne();
+                        var id = _counter++;
                         Log($"connection accepted with id '{id}'");
                         Handle(id, client, ct, terminator);
                     }
@@ -52,6 +58,9 @@ namespace WebServer
                     Log($"Exception '{e.Message}' received");
                 }
 
+                // Release units before exiting the server
+                ConnectionsCounter.Release();
+                
                 Log("waiting shutdown");
                 await terminator.Shutdown();
             }
@@ -98,7 +107,7 @@ namespace WebServer
                                 var request = json.ToObject<ServerObjects.Request>();
                                 Task<ServerObjects.Response> response = null;
                                 
-                                var methodToExecute = r.HandleRequest(request.Method);
+                                var methodToExecute = R.HandleRequest(request.Method);
                                 // execute right function returned by router or if the router couldn't find a function
                                 // return a status code indicating request not found
                                 response = methodToExecute != null

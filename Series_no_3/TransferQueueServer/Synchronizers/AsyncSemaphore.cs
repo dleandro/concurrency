@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Examples;
 
-namespace Examples
+namespace Synchronizers
 {
     /**
      * Semaphore with asynchronous Acquire operation, supporting timeout and cancellation via CancellationToken
