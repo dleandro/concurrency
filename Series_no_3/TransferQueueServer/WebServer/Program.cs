@@ -4,10 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Examples;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Synchronizers;
 using Utils;
 
 namespace WebServer
@@ -18,6 +16,7 @@ namespace WebServer
         private const int Port = 8081;
         private static int _counter;
         private static readonly Router R =  new Router();
+        
         // Starts a Semaphore that lets 5 threads to initialize our server,
         // the 6th thread will have to wait for a release
         private static readonly Semaphore ConnectionsCounter = new Semaphore(5, 5);
@@ -46,10 +45,25 @@ namespace WebServer
                     {
                         Log("Accepting new TCP client");
                         var client = await listener.AcceptTcpClientAsync();
-                        ConnectionsCounter.WaitOne();
-                        var id = _counter++;
-                        Log($"connection accepted with id '{id}'");
-                        Handle(id, client, ct, terminator);
+
+                        // check if we can acquire a unit for the new client
+                        await Task.FromResult(ConnectionsCounter.WaitOne(TimeSpan.FromSeconds(4)))
+                            .ContinueWith(task =>
+                            {
+                                // means that unit has been acquired
+                                if (task.Result)
+                                {
+                                    var id = _counter++;
+                                    Log($"connection accepted with id '{id}'");
+                        
+                                    Handle(id, client, ct, terminator);
+
+                                    // Release units before exiting the server
+                                    ConnectionsCounter.Release();
+                                }
+
+                                Log("maximum number of connections has been reached");
+                            }, ct);
                     }
                 }
                 catch (Exception e)
@@ -57,9 +71,6 @@ namespace WebServer
                     // await AcceptTcpClientAsync will end up with an exception
                     Log($"Exception '{e.Message}' received");
                 }
-
-                // Release units before exiting the server
-                ConnectionsCounter.Release();
                 
                 Log("waiting shutdown");
                 await terminator.Shutdown();

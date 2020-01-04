@@ -9,7 +9,7 @@ using Utils;
 
 namespace WebServer
 {
-    public class ServerFunctionalities
+    public static class ServerFunctionalities
     {
         private static readonly ConcurrentQueue<TransferQueue<JObject>> Queues = new ConcurrentQueue<TransferQueue<JObject>>();
 
@@ -30,7 +30,7 @@ namespace WebServer
 
             try
             {
-)
+                
                 return await Queues.AsEnumerable(
                     .First(tq => tq.Name.Equals(request.Path)).Put(request.Payload)
                     ? new ServerObjects.Response {Status = (int) StatusCodes.OK}
@@ -53,8 +53,9 @@ namespace WebServer
             {
 
                 return await Queues.AsEnumerable()
-                    .First(tq => tq.Name.Equals(request.Path)).Transfer(request.Payload,
-                       TimeSpan.FromMilliseconds((int) (request.Headers["timeout"] ?? "1000")), ct);
+                    .First(tq => tq.Name.Equals(request.Path))
+                    .Transfer(request.Payload, 
+                        TimeSpan.FromMilliseconds((int) (request.Headers["timeout"] ?? "1000")), ct);
 
             }
                 

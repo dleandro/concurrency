@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ContentModelStore">
-    <e p="C:\Users\origi\.Rider2019.3\system\extResources" t="IncludeRecursive" />
-    <e p="C:\Users\origi\.Rider2019.3\system\resharper-host\local\Transient\ReSharperHost\v193\SolutionCaches\_TransferQueueServer.-1983278142.00" t="ExcludeRecursive" />
-    <e p="E:\Users\Diogo\Desktop\isel\PC\concurrency-in-java\Series_no_3\TransferQueueServer" t="IncludeFlat">
+    <e p="$PROJECT_DIR$" t="IncludeFlat">
       <e p="ClientApp" t="IncludeRecursive">
+        <e p="bin" t="ExcludeRecursive" />
         <e p="ClientApp.csproj" t="IncludeRecursive" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="netcoreapp2.2" t="Include">
+              <e p="ClientApp.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+        <e p="Program.cs" t="Include" />
       </e>
       <e p="packages" t="ExcludeRecursive" />
       <e p="Synchronizers" t="IncludeRecursive">
-        <e p="AsyncSemaphore.cs" t="Include" />
         <e p="bin" t="ExcludeRecursive" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Debug" t="Include">
@@ -25,8 +31,6 @@
       <e p="Utils" t="IncludeRecursive">
         <e p="BaseRequest.cs" t="Include" />
         <e p="bin" t="ExcludeRecursive" />
-        <e p="ConsumerBase.cs" t="Include" />
-        <e p="Counter.cs" t="Include" />
         <e p="Method.cs" t="Include" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Debug" t="Include">
@@ -55,5 +59,7 @@
         <e p="WebServer.csproj" t="IncludeRecursive" />
       </e>
     </e>
+    <e p="$USER_HOME$/Library/Caches/Rider2019.3/extResources" t="IncludeRecursive" />
+    <e p="$USER_HOME$/Library/Caches/Rider2019.3/resharper-host/local/Transient/ReSharperHost/v193/SolutionCaches/_TransferQueueServer.258241084.00" t="ExcludeRecursive" />
   </component>
 </project>

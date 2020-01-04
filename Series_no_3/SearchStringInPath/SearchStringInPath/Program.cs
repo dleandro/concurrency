@@ -17,22 +17,13 @@ namespace SearchStringInPath
 
         private static void Main(string[] args)
         {
-            var subDirRes = new ParallelLoopResult();
-            
-            // check first for all sub directories if any and check every file in those
-            if (Directory.GetDirectories(args[0]).Length > 0)
-            {
-                subDirRes = Parallel.ForEach(Directory.EnumerateDirectories(args[0]), directory =>
-                {
-                    CheckAllFiles(args[1], directory);
-                });
-            }
-            
-            // check every file on the first directory
-            var dirRes = CheckAllFiles(args[1], args[0]);
 
-            // check this boolean, probably causes concurrency problems 
-            if (!dirRes.IsCompleted && !subDirRes.IsCompleted) return;
+            // loop through every directory enumerated including current directory and its sub directories
+            // while looping check all files for desired string
+            var res = Parallel.ForEach(Directory.EnumerateDirectories(args[0], "*.*",
+                SearchOption.AllDirectories), directory => CheckAllFiles(args[1], directory));
+
+            while (!res.IsCompleted) ;
             
             Console.WriteLine("Number of lines read: {0}", _readLinesCounter);
 
@@ -41,22 +32,23 @@ namespace SearchStringInPath
             Console.WriteLine("Number of files read: {0}", _readFilesCounter);
         }
 
-        private static ParallelLoopResult CheckAllFiles(string lineToFind, string currPath)
+        private static void CheckAllFiles(string lineToFind, string currPath)
         {
             // Go through every file on the current directory
-            return Parallel.ForEach(Directory.GetFiles(currPath), file =>
+            Parallel.ForEach(Directory.GetFiles(currPath), file =>
             {
+                // increment number of files read
+                Interlocked.Increment(ref _readFilesCounter);
+                
                 // read lines    
                 ReadCurrPathLines(currPath, lineToFind);
             });
         }
 
-        private static ParallelLoopResult ReadCurrPathLines(string currPath, string stringToFind)
+        private static void ReadCurrPathLines(string currPath, string stringToFind)
         {
-            // increment number of files read
-            Interlocked.Increment(ref _readFilesCounter);
             
-            return Parallel.ForEach(File.ReadLines(currPath), line =>
+            Parallel.ForEach(File.ReadLines(currPath), line =>
             {
 
                 Interlocked.Increment(ref _readLinesCounter);
