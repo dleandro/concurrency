@@ -116,12 +116,11 @@ namespace WebServer
                                 var json = await JObject.LoadAsync(reader, ct);
                                 Log($"Object read, {ct.IsCancellationRequested}");
                                 var request = json.ToObject<ServerObjects.Request>();
-                                Task<ServerObjects.Response> response = null;
-                                
                                 var methodToExecute = R.HandleRequest(request.Method);
+                                
                                 // execute right function returned by router or if the router couldn't find a function
                                 // return a status code indicating request not found
-                                response = methodToExecute != null
+                                var response = methodToExecute != null
                                     ? methodToExecute.ReqExecutor(request, ct)
                                     : new Task<ServerObjects.Response>(
                                         () => new ServerObjects.Response{Status = (int) StatusCodes.NO_OP});

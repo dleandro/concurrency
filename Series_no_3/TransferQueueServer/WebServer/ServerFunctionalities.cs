@@ -25,69 +25,69 @@ namespace WebServer
             });
         }
 
-        public static async Task<ServerObjects.Response> ExecutePut(ServerObjects.Request request, CancellationToken ct)
+        public static Task<ServerObjects.Response> ExecutePut(ServerObjects.Request request, CancellationToken ct)
         {
 
             try
             {
                 
-                return await Queues.AsEnumerable(
+                return Task.FromResult( Queues.AsEnumerable(
                     .First(tq => tq.Name.Equals(request.Path)).Put(request.Payload)
                     ? new ServerObjects.Response {Status = (int) StatusCodes.OK}
-                    : new ServerObjects.Response {Status = (int) StatusCodes.BAD_REQUEST};
+                    : new ServerObjects.Response {Status = (int) StatusCodes.BAD_REQUEST});
 
             }
                 
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                return new ServerObjects.Response {Status = (int) StatusCodes.NO_QUEUE};
+                return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.NO_QUEUE});
 
             }
         }
 
-        public static async Task<ServerObjects.Response> ExecuteTransfer(ServerObjects.Request request,
+        public static Task<ServerObjects.Response> ExecuteTransfer(ServerObjects.Request request,
             CancellationToken ct)
         {
             try
             {
 
-                return await Queues.AsEnumerable()
+                return Task.FromResult<ServerObjects.Response>( Queues.AsEnumerable(
                     .First(tq => tq.Name.Equals(request.Path))
                     .Transfer(request.Payload, 
-                        TimeSpan.FromMilliseconds((int) (request.Headers["timeout"] ?? "1000")), ct);
+                        TimeSpan.FromMilliseconds((int) (request.Headers["timeout"] ?? "1000")), ct));
 
             }
                 
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                return new ServerObjects.Response {Status = (int) StatusCodes.NO_QUEUE};
+                return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.NO_QUEUE});
 
             }
         }
 
-        public static async Task<ServerObjects.Response> ExecuteTake(ServerObjects.Request request, CancellationToken ct)
+        public static Task<ServerObjects.Response> ExecuteTake(ServerObjects.Request request, CancellationToken ct)
         {
             try
             {
 
-                return await Queues.AsEnumerable()
+                return Task.FromResult( Queues.AsEnumerable(
                     .First(tq => 
                         tq.Name.Equals(request.Path)).Take(
-                        TimeSpan.FromMilliseconds((int)  (request.Headers["timeout"] ?? "1000")), ct);
+                        TimeSpan.FromMilliseconds((int)  (request.Headers["timeout"] ?? "1000")), ct));
 
             }
                 
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                return new ServerObjects.Response {Status = (int) StatusCodes.NO_QUEUE};
+                return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.NO_QUEUE});
 
             }        
         }
 
-        public static async Task<ServerObjects.Response> ExecuteShutdown(ServerObjects.Request request,
+        public static Task<ServerObjects.Response> ExecuteShutdown(ServerObjects.Request request,
             CancellationToken ct)
         {
             if (!ct.IsCancellationRequested)
@@ -95,7 +95,7 @@ namespace WebServer
                 ct.Register()
             }
 
-            return new ServerObjects.Response();
+            return Task.FromResult(new ServerObjects.Response());
         }
     }
 }

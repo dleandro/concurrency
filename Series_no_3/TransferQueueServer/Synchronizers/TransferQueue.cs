@@ -25,10 +25,6 @@ namespace Synchronizers
         
         private class TakeRequest : BaseRequest<ServerObjects.Response>
         {
-            public TakeRequest()
-            {
-                
-            }
 
             public Timer Timer { get; set; }
             public CancellationTokenRegistration CancellationRegistration { get; set; }
@@ -45,7 +41,6 @@ namespace Synchronizers
 
         public Task<bool> Put(T message)
         {
-            // try adding without lock
             lock (_mon)
             {
                 _queue.AddLast(message);
@@ -58,8 +53,18 @@ namespace Synchronizers
         {
             lock (_mon)
             {
+                // check for a pending request
+                if (_takeRequests.Count != 0)
+                {
+                    var removedNode = _takeRequests.First;
+                    _takeRequests.Remove(removedNode);
+                    removedNode.Value.SetResult(new ServerObjects.Response {Status = (int) StatusCodes.OK, 
+                        Payload = new JObject(message)});
+                    return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
+                }
+                
                 var addedNode = _queue.AddLast(message);
-            
+
                 if (timeout.TotalMilliseconds <= 0)
                 { 
                     _queue.Remove(addedNode);
@@ -200,17 +205,23 @@ namespace Synchronizers
         {
             lock (_mon)
             {
-                if (_queue.Count > 0)
+                
+                // check if there are messages available and requests to be fulfilled
+                if (_queue.Count > 0 && _transferRequests.Count > 0)
                 {
-                    var nodeToReturn = _queue.First;
-                    _queue.Remove(nodeToReturn);
+                    var removedRequest = _transferRequests.First;
+                    _transferRequests.Remove(removedRequest);
+                    removedRequest.Value.SetResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
+                    
+                    _queue.Remove(removedRequest.Value.AddedNode);
+                    
                     return Task.FromResult(new ServerObjects.Response
-                        {Status = (int) StatusCodes.OK, Payload = new JObject(nodeToReturn.Value)});
+                        {Status = (int) StatusCodes.OK, Payload = new JObject(removedRequest.Value.AddedNode.Value)});
                 }
 
                 if (timeout.TotalMilliseconds <= 0)
                 {
-                    return Task.FromResult<ServerObjects.Response>(new ServerObjects.Response {Status = (int) StatusCodes.TIMEOUT});
+                    return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.TIMEOUT});
                 }
 
                 // create a request

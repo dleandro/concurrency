@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ContentModelStore">
-    <e p="$PROJECT_DIR$" t="IncludeFlat">
+    <e p="C:\Users\origi\.Rider2019.3\system\extResources" t="IncludeRecursive" />
+    <e p="C:\Users\origi\.Rider2019.3\system\resharper-host\local\Transient\ReSharperHost\v193\SolutionCaches\_TransferQueueServer.-1983278142.00" t="ExcludeRecursive" />
+    <e p="E:\Users\Diogo\Desktop\isel\PC\concurrency-in-java\Series_no_3\TransferQueueServer" t="IncludeFlat">
       <e p="ClientApp" t="IncludeRecursive">
         <e p="bin" t="ExcludeRecursive" />
         <e p="ClientApp.csproj" t="IncludeRecursive" />
@@ -59,7 +61,5 @@
         <e p="WebServer.csproj" t="IncludeRecursive" />
       </e>
     </e>
-    <e p="$USER_HOME$/Library/Caches/Rider2019.3/extResources" t="IncludeRecursive" />
-    <e p="$USER_HOME$/Library/Caches/Rider2019.3/resharper-host/local/Transient/ReSharperHost/v193/SolutionCaches/_TransferQueueServer.258241084.00" t="ExcludeRecursive" />
   </component>
 </project>
