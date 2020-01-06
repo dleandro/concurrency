@@ -46,9 +46,9 @@ namespace Synchronizers
                 _queue.AddLast(message);
             }
 
-            return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
+            return Task.FromResult(new ServerObjects.Response { Status = (int)StatusCodes.OK });
         }
-        
+
         public Task<ServerObjects.Response> Transfer(T message, TimeSpan timeout, CancellationToken ct)
         {
             lock (_mon)
