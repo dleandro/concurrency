@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
+using Utils;
 
 namespace WebServer
 {
     public class Router
     {
-        private IEnumerable<Method> _methods = Enumerable.Empty<Method>();
-        public Method HandleRequest(string method)
+        private IEnumerable<Function> _methods = Enumerable.Empty<Function>();
+        public Function HandleRequest(string method)
         {
             return _methods.First(m => m.MethodName == method);
         }
@@ -16,11 +16,11 @@ namespace WebServer
         {
             _methods = new []
             {
-                new Method(ServerFunctionalities.ExecuteCreate, "CREATE"),
-                new Method(ServerFunctionalities.ExecutePut, "PUT"),
-                new Method(ServerFunctionalities.ExecuteTransfer, "TRANSFER"),
-                new Method(ServerFunctionalities.ExecuteTake, "TAKE"),
-                new Method(ServerFunctionalities.ExecuteShutdown, "SHUTDOWN"), 
+                new Function(ServerFunctionalities.ExecuteCreate, "CREATE"),
+                new Function(ServerFunctionalities.ExecutePut, "PUT"),
+                new Function(ServerFunctionalities.ExecuteTransfer, "TRANSFER"),
+                new Function(ServerFunctionalities.ExecuteTake, "TAKE"),
+                new Function(ServerFunctionalities.ExecuteShutdown, "SHUTDOWN"), 
             };
         }
     }

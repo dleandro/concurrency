@@ -12,7 +12,6 @@ namespace ClientApp
 
         static void Main(string[] args)
         {
-            Console.WriteLine(sendMessage(args.To));
         }
         
         private static byte[] sendMessage(byte[] messageBytes)  

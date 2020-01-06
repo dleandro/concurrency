@@ -19,17 +19,16 @@ namespace WebServer
             {
                 return new Task<ServerObjects.Response>(() =>
                 {
-                    ct.ThrowIfCancellationRequested();
                     // Create and add a transferQueue to our Queues, has to be thread-safe
                     Queues.Enqueue(new TransferQueue<JObject> { Name = request.Path });
 
-                    ct.ThrowIfCancellationRequested();
                     return new ServerObjects.Response { Status = (int)StatusCodes.OK };
                 });
-            }catch(OperationCanceledException e)
+            }
+            catch(OperationCanceledException e)
             {
                 Console.WriteLine("Queue creation cancelled, please try again");
-                return Task<ServerObjects.Response>.FromResult(new ServerObjects.Response { Status = (int)StatusCodes.SERVER_ERR });
+                return Task.FromResult(new ServerObjects.Response { Status = (int)StatusCodes.SERVER_ERR });
             }
         }
 
@@ -93,23 +92,30 @@ namespace WebServer
         }
 
         public static Task<ServerObjects.Response> ExecuteShutdown(ServerObjects.Request request,
-            CancellationToken ct)
+            CancellationTokenSource cts)
         {
-            using (var cancellationTokenSource = new CancellationTokenSource(/*timeSpan*/))
-            {
-                try
-                {
-                    ct.ThrowIfCancellationRequested();
-                    return Task.FromResult(new ServerObjects.Response { Status = (int)StatusCodes.OK });
-                }
-                catch (OperationCanceledException e)
-                {
-                    cancellationTokenSource.Cancel();
-                    Console.WriteLine("shutdown initiated...");
-                    return Task.FromResult(new ServerObjects.Response { Status = (int)StatusCodes.NO_SERVICE });
-                }
+            // request cancellation
+            cts.Cancel();
 
+            if (Program.shutdown)
+            {
+                return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
             }
+            
+            return new Task<ServerObjects.Response>(() =>
+            {
+                var startTimeInMillis = DateTime.Now.Millisecond; 
+                
+                while (startTimeInMillis - DateTime.Now.Millisecond > 0)
+                {
+                    if (Program.shutdown)
+                    {
+                        return new ServerObjects.Response {Status = (int) StatusCodes.OK};
+                    }
+                }
+                
+                return new ServerObjects.Response {Status = (int) StatusCodes.SERVER_ERR};
+            });
         }
     }
 }

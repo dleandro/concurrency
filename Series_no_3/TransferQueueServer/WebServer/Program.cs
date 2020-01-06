@@ -17,9 +17,10 @@ namespace WebServer
         private static int _counter;
         private static readonly Router R =  new Router();
         
-        // Starts a Semaphore that lets 5 threads to initialize our server,
+        // Starts a Semaphore that lets 5 threads enter our server,
         // the 6th thread will have to wait for a release
         private static readonly Semaphore ConnectionsCounter = new Semaphore(5, 5);
+        public static bool shutdown = false;
         
         static async Task Main(string[] args)
         {
@@ -56,7 +57,7 @@ namespace WebServer
                                     var id = _counter++;
                                     Log($"connection accepted with id '{id}'");
                         
-                                    Handle(id, client, ct, terminator);
+                                    Handle(id, client, ct, cts, terminator);
 
                                     // Release units before exiting the server
                                     ConnectionsCounter.Release();
@@ -73,16 +74,17 @@ namespace WebServer
                 }
                 
                 Log("waiting shutdown");
-                await terminator.Shutdown();
+                await terminator.Shutdown().ContinueWith(_ => shutdown = true, ct);
             }
         }
         
         private static readonly JsonSerializer serializer = new JsonSerializer();
 
-        private static async void Handle(int id, TcpClient client, CancellationToken ct, Terminator terminator)
+        private static async void Handle(
+            int id, TcpClient client, CancellationToken ct, CancellationTokenSource cts, Terminator terminator)
         {
-             using (terminator.Enter()) 
-             {
+            using (terminator.Enter()) 
+            {
                 try
                 {
                     using (client)
@@ -116,14 +118,21 @@ namespace WebServer
                                 var json = await JObject.LoadAsync(reader, ct);
                                 Log($"Object read, {ct.IsCancellationRequested}");
                                 var request = json.ToObject<ServerObjects.Request>();
-                                var methodToExecute = R.HandleRequest(request.Method);
+                                var functionToExecute = R.HandleRequest(request.Method);
                                 
                                 // execute right function returned by router or if the router couldn't find a function
                                 // return a status code indicating request not found
-                                var response = methodToExecute != null
-                                    ? methodToExecute.ReqExecutor(request, ct)
-                                    : new Task<ServerObjects.Response>(
-                                        () => new ServerObjects.Response{Status = (int) StatusCodes.NO_OP});
+                                Task<ServerObjects.Response> response;
+                                if (functionToExecute != null)
+                                {
+                                    response = functionToExecute.ReqExecutor != null
+                                        ? functionToExecute.ReqExecutor(request, ct)
+                                        : functionToExecute.ReqExecutorWithCts(request, cts);
+                                }
+                                else
+                                {
+                                    response = Task.FromResult(new ServerObjects.Response{Status = (int) StatusCodes.NO_OP});
+                                }
                                 
                                 serializer.Serialize(writer, await response);
                                 await writer.FlushAsync(ct);
@@ -152,7 +161,7 @@ namespace WebServer
                 {
                     Log($"Ended connection {id}");
                 } 
-             }
+            }
         }
 
         private static void Log(string s)
