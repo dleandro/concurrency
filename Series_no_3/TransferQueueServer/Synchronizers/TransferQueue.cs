@@ -39,14 +39,14 @@ namespace Synchronizers
         private readonly LinkedList<TransferRequest> _transferRequests = new LinkedList<TransferRequest>();
         private readonly LinkedList<TakeRequest> _takeRequests = new LinkedList<TakeRequest>();
 
-        public Task<bool> Put(T message)
+        public Task<ServerObjects.Response> Put(T message)
         {
             lock (_mon)
             {
                 _queue.AddLast(message);
             }
 
-            return Task.FromResult(true);
+            return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
         }
         
         public Task<ServerObjects.Response> Transfer(T message, TimeSpan timeout, CancellationToken ct)

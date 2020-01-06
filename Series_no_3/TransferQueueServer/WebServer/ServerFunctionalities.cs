@@ -29,13 +29,10 @@ namespace WebServer
         {
 
             try
-            {
-                
-                return Task.FromResult( Queues.AsEnumerable(
-                    .First(tq => tq.Name.Equals(request.Path)).Put(request.Payload)
-                    ? new ServerObjects.Response {Status = (int) StatusCodes.OK}
-                    : new ServerObjects.Response {Status = (int) StatusCodes.BAD_REQUEST});
-
+            { 
+                return Queues.AsEnumerable()
+                        .First(tq => tq.Name.Equals(request.Path))
+                        .Put(request.Payload);
             }
                 
             catch (Exception e)
@@ -52,10 +49,10 @@ namespace WebServer
             try
             {
 
-                return Task.FromResult<ServerObjects.Response>( Queues.AsEnumerable(
+                return Queues.AsEnumerable()
                     .First(tq => tq.Name.Equals(request.Path))
                     .Transfer(request.Payload, 
-                        TimeSpan.FromMilliseconds((int) (request.Headers["timeout"] ?? "1000")), ct));
+                        TimeSpan.FromMilliseconds((int) (request.Headers["timeout"] ?? "1000")), ct);
 
             }
                 
@@ -72,10 +69,10 @@ namespace WebServer
             try
             {
 
-                return Task.FromResult( Queues.AsEnumerable(
+                return Queues.AsEnumerable()
                     .First(tq => 
                         tq.Name.Equals(request.Path)).Take(
-                        TimeSpan.FromMilliseconds((int)  (request.Headers["timeout"] ?? "1000")), ct));
+                        TimeSpan.FromMilliseconds((int)  (request.Headers["timeout"] ?? "1000")), ct);
 
             }
                 
