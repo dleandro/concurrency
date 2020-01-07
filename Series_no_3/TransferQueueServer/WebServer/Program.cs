@@ -20,7 +20,7 @@ namespace WebServer
         // Starts a Semaphore that lets 5 threads enter our server,
         // the 6th thread will have to wait for a release
         private static readonly Semaphore ConnectionsCounter = new Semaphore(5, 5);
-        public static bool shutdown = false;
+        public static bool Shutdown = false;
         
         static async Task Main(string[] args)
         {
@@ -62,8 +62,11 @@ namespace WebServer
                                     // Release units before exiting the server
                                     ConnectionsCounter.Release();
                                 }
+                                else
+                                {
+                                    Log("maximum number of connections has been reached");
+                                }
 
-                                Log("maximum number of connections has been reached");
                             }, ct);
                     }
                 }
@@ -74,7 +77,7 @@ namespace WebServer
                 }
                 
                 Log("waiting shutdown");
-                await terminator.Shutdown().ContinueWith(_ => shutdown = true, ct);
+                await terminator.Shutdown().ContinueWith(_ => Shutdown = true, ct);
             }
         }
         
@@ -133,7 +136,10 @@ namespace WebServer
                                 {
                                     response = Task.FromResult(new ServerObjects.Response{Status = (int) StatusCodes.NO_OP});
                                 }
+
+                                Log($"request: {request}");
                                 
+                                await response.ContinueWith(task => Console.WriteLine($"client id {id}'s status: {task.Result.Status}"), ct);
                                 serializer.Serialize(writer, await response);
                                 await writer.FlushAsync(ct);
                             }

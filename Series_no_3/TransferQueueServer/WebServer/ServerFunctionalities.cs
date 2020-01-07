@@ -97,7 +97,7 @@ namespace WebServer
             // request cancellation
             cts.Cancel();
 
-            if (Program.shutdown)
+            if (Program.Shutdown)
             {
                 return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
             }
@@ -108,7 +108,7 @@ namespace WebServer
                 
                 while (startTimeInMillis - DateTime.Now.Millisecond > 0)
                 {
-                    if (Program.shutdown)
+                    if (Program.Shutdown)
                     {
                         return new ServerObjects.Response {Status = (int) StatusCodes.OK};
                     }

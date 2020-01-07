@@ -1,6 +1,6 @@
 using Newtonsoft.Json.Linq;
 
-namespace WebServer
+namespace Utils
 {
     public class ServerObjects
     {
@@ -24,6 +24,11 @@ namespace WebServer
             public int Status { get; set; }
             public JObject Headers { get; set; }
             public JObject Payload { get; set; }
+            
+            public override string ToString()
+            {
+                return $"Status: {Status}, Headers: {Headers}, Payload: {Payload}";
+            }
         }
     }
 }
