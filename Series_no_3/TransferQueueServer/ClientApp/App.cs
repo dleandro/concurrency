@@ -33,7 +33,7 @@ namespace ClientApp
 
                 var client = new TcpClient();
 
-                //Creates a TCPClient using a local end point.
+                // Creates a TCPClient using a local end point.
 
                 client.Connect(IPAddress.Loopback, Port);
                 
@@ -44,27 +44,22 @@ namespace ClientApp
                 var writer = new JsonTextWriter(new StreamWriter(stream));
                 var req = new ServerObjects.Request
                 {
-                    Method = "CREATE",
-                    Path = "test",
+                    Method = "PUT",
+                    Path = "Test",
                     Headers = new JObject(),
-                    Payload = new JObject()
+                    Payload = new JObject { ["Message"] = "TestMessage" }
                 };
                     
                 serializer.Serialize(writer, req);
-                //writer.WriteRaw(JsonConvert.SerializeObject(req));
-                    
-                Console.WriteLine("================================");  
-                Console.WriteLine("=   Connected to the server    =");  
-                Console.WriteLine("================================");  
-                Console.WriteLine("Waiting for response...");
-
+                await writer.FlushAsync();
+        
                 var reader = new JsonTextReader(new StreamReader(stream));
 
                 while (true)
                 {
                     do
                     {
-                        await reader.ReadAsStringAsync();
+                        await reader.ReadAsync();
                         Console.WriteLine($"advanced to {reader.TokenType}");
                     } while (reader.TokenType != JsonToken.StartObject
                              && reader.TokenType != JsonToken.None);

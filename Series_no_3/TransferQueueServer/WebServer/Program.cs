@@ -136,12 +136,12 @@ namespace WebServer
                                 {
                                     response = Task.FromResult(new ServerObjects.Response{Status = (int) StatusCodes.NO_OP});
                                 }
-
-                                Log($"request: {request}");
                                 
                                 await response.ContinueWith(task => Console.WriteLine($"client id {id}'s status: {task.Result.Status}"), ct);
                                 serializer.Serialize(writer, await response);
                                 await writer.FlushAsync(ct);
+                                
+                                Log($"request: {request}");
                             }
                             catch (JsonReaderException e)
                             {

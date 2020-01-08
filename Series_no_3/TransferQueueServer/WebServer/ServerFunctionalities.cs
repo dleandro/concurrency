@@ -17,13 +17,10 @@ namespace WebServer
         {
             try
             {
-                return new Task<ServerObjects.Response>(() =>
-                {
-                    // Create and add a transferQueue to our Queues, has to be thread-safe
-                    Queues.Enqueue(new TransferQueue<JObject> { Name = request.Path });
+                // Create and add a transferQueue to our Queues, has to be thread-safe
+                Queues.Enqueue(new TransferQueue<JObject> { Name = request.Path });
 
-                    return new ServerObjects.Response { Status = (int)StatusCodes.OK };
-                });
+                return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
             }
             catch(OperationCanceledException e)
             {
@@ -39,8 +36,8 @@ namespace WebServer
             {
 
                 return Queues.AsEnumerable()
-                         .First(tq => tq.Name.Equals(request.Path))
-                         .Put(request.Payload);
+                    .First(tq => tq.Name.Equals(request.Path))
+                    .Put((JObject) request.Payload["Message"]);
 
             }
                 
@@ -77,9 +74,9 @@ namespace WebServer
             {
 
                 return Queues.AsEnumerable()
-                     .First(tq =>
-                         tq.Name.Equals(request.Path)).Take(
-                         TimeSpan.FromMilliseconds((int)(request.Headers["timeout"] ?? "1000")), ct);
+                    .First(tq =>
+                        tq.Name.Equals(request.Path)).Take(
+                        TimeSpan.FromMilliseconds((int)(request.Headers["timeout"] ?? "1000")), ct);
 
             }
                 
