@@ -20,7 +20,8 @@ namespace WebServer
         // Starts a Semaphore that lets 5 threads enter our server,
         // the 6th thread will have to wait for a release
         private static readonly Semaphore ConnectionsCounter = new Semaphore(5, 5);
-        public static bool Shutdown = false;
+        public static bool Shutdown;
+        public static object _mon = new object();
         
         static async Task Main(string[] args)
         {
@@ -76,7 +77,6 @@ namespace WebServer
 
                 Log("waiting shutdown");
                 await terminator.Shutdown();
-                Shutdown = true;
             }
             
         }

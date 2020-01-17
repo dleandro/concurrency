@@ -91,25 +91,12 @@ namespace WebServer
         public static ServerObjects.Response ExecuteShutdown(ServerObjects.Request request,
             CancellationTokenSource cts)
         {
+            Program.Shutdown = true;
+
             // request cancellation
             cts.Cancel();
-
-            if (Program.Shutdown)
-            {
-                return new ServerObjects.Response {Status = (int) StatusCodes.OK};
-            }
-        
-            var startTimeInMillis = DateTime.Now.Millisecond; 
                 
-            while (startTimeInMillis - DateTime.Now.Millisecond > 0)
-            {
-                if (Program.Shutdown)
-                {
-                    return new ServerObjects.Response {Status = (int) StatusCodes.OK};
-                }
-            }
-                
-            return new ServerObjects.Response {Status = (int) StatusCodes.SERVER_ERR};
+            return new ServerObjects.Response {Status = (int) StatusCodes.OK};
         }
     }
 }

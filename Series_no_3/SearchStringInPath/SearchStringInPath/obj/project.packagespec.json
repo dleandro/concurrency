@@ -1,18 +1,19 @@
 ﻿{
   "version": "1.0.0",
   "restore": {
-    "projectUniqueName": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/SearchStringInPath.csproj",
+    "projectUniqueName": "E:\\Users\\Diogo\\Desktop\\isel\\PC\\concurrency\\Series_no_3\\SearchStringInPath\\SearchStringInPath\\SearchStringInPath.csproj",
     "projectName": "SearchStringInPath",
-    "projectPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/SearchStringInPath.csproj",
-    "outputPath": "/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/obj/",
+    "projectPath": "E:\\Users\\Diogo\\Desktop\\isel\\PC\\concurrency\\Series_no_3\\SearchStringInPath\\SearchStringInPath\\SearchStringInPath.csproj",
+    "outputPath": "E:\\Users\\Diogo\\Desktop\\isel\\PC\\concurrency\\Series_no_3\\SearchStringInPath\\SearchStringInPath\\obj\\",
     "projectStyle": "PackageReference",
     "fallbackFolders": [
-      "/usr/local/share/dotnet/sdk/NuGetFallbackFolder"
+      "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
     ],
     "originalTargetFrameworks": [
       "netcoreapp2.2"
     ],
     "sources": {
+      "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
       "https://api.nuget.org/v3/index.json": {}
     },
     "frameworks": {
@@ -37,10 +38,16 @@
         }
       },
       "imports": [
-        "net461"
+        "net461",
+        "net462",
+        "net47",
+        "net471",
+        "net472",
+        "net48"
       ],
       "assetTargetFallback": true,
-      "warn": true
+      "warn": true,
+      "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\3.0.100\\RuntimeIdentifierGraph.json"
     }
   }
 }
