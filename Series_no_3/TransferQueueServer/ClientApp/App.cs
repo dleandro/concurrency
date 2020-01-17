@@ -2,7 +2,6 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -44,10 +43,10 @@ namespace ClientApp
                 var writer = new JsonTextWriter(new StreamWriter(stream));
                 var req = new ServerObjects.Request
                 {
-                    Method = "PUT",
-                    Path = "Test",
+                    Method = "SHUTDOWN",
+                    Path = "",
                     Headers = new JObject(),
-                    Payload = new JObject { ["Message"] = "TestMessage" }
+                    Payload = new JObject()
                 };
                     
                 serializer.Serialize(writer, req);

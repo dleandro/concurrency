@@ -7,7 +7,7 @@ namespace Utils
     public class Function
     {
         public readonly Func<ServerObjects.Request, CancellationToken, Task<ServerObjects.Response>> ReqExecutor;
-        public readonly Func<ServerObjects.Request, CancellationTokenSource, Task<ServerObjects.Response>> ReqExecutorWithCts;
+        public readonly Func<ServerObjects.Request, CancellationTokenSource, ServerObjects.Response> ReqExecutorWithCts;
         public readonly string MethodName;
         
         public Function(
@@ -19,7 +19,7 @@ namespace Utils
         }
         
         public Function(
-            Func<ServerObjects.Request, CancellationTokenSource, Task<ServerObjects.Response>> reqExecutorWithCts,
+            Func<ServerObjects.Request, CancellationTokenSource, ServerObjects.Response> reqExecutorWithCts,
             string method)
         {
             ReqExecutorWithCts = reqExecutorWithCts;

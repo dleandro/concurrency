@@ -24,6 +24,7 @@ namespace WebServer
         
         static async Task Main(string[] args)
         {
+            
             var listener = new TcpListener(IPAddress.Loopback, Port);
             var terminator = new Terminator();
             var cts = new CancellationTokenSource();
@@ -47,27 +48,24 @@ namespace WebServer
                         Log("Accepting new TCP client");
                         var client = await listener.AcceptTcpClientAsync();
 
+                        var connection = await GetConnection();
+
                         // check if we can acquire a unit for the new client
-                        await Task.FromResult(ConnectionsCounter.WaitOne(TimeSpan.FromSeconds(4)))
-                            .ContinueWith(task =>
-                            {
-                                // means that unit has been acquired
-                                if (task.Result)
-                                {
-                                    var id = _counter++;
-                                    Log($"connection accepted with id '{id}'");
-                        
-                                    Handle(id, client, ct, cts, terminator);
+                        if (connection)
+                        {
+                            var id = _counter++;
+                            Log($"connection accepted with id '{id}'");
 
-                                    // Release units before exiting the server
-                                    ConnectionsCounter.Release();
-                                }
-                                else
-                                {
-                                    Log("maximum number of connections has been reached");
-                                }
+                            Handle(id, client, ct, cts, terminator);
 
-                            }, ct);
+                            // Release units before exiting the server
+                            ConnectionsCounter.Release();
+                        }
+                        else
+                        {
+                            Log("maximum number of connections has been reached");
+                        }
+
                     }
                 }
                 catch (Exception e)
@@ -75,12 +73,19 @@ namespace WebServer
                     // await AcceptTcpClientAsync will end up with an exception
                     Log($"Exception '{e.Message}' received");
                 }
-                
+
                 Log("waiting shutdown");
-                await terminator.Shutdown().ContinueWith(_ => Shutdown = true, ct);
+                await terminator.Shutdown();
+                Shutdown = true;
             }
+            
         }
-        
+
+        private static Task<bool> GetConnection()
+        {
+            return Task.FromResult(ConnectionsCounter.WaitOne(TimeSpan.FromSeconds(4)));
+        }
+
         private static readonly JsonSerializer serializer = new JsonSerializer();
 
         private static async void Handle(
@@ -130,13 +135,13 @@ namespace WebServer
                                 {
                                     response = functionToExecute.ReqExecutor != null
                                         ? functionToExecute.ReqExecutor(request, ct)
-                                        : functionToExecute.ReqExecutorWithCts(request, cts);
+                                        : Task.FromResult(functionToExecute.ReqExecutorWithCts(request, cts));
                                 }
                                 else
                                 {
                                     response = Task.FromResult(new ServerObjects.Response{Status = (int) StatusCodes.NO_OP});
                                 }
-                                
+
                                 await response.ContinueWith(task => Console.WriteLine($"client id {id}'s status: {task.Result.Status}"), ct);
                                 serializer.Serialize(writer, await response);
                                 await writer.FlushAsync(ct);

@@ -1,0 +1,11 @@
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/bin/Debug/netcoreapp2.2/SearchStringInPath.deps.json
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/bin/Debug/netcoreapp2.2/SearchStringInPath.runtimeconfig.json
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/bin/Debug/netcoreapp2.2/SearchStringInPath.runtimeconfig.dev.json
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/bin/Debug/netcoreapp2.2/SearchStringInPath.dll
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/bin/Debug/netcoreapp2.2/SearchStringInPath.pdb
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/obj/Debug/netcoreapp2.2/SearchStringInPath.csprojAssemblyReference.cache
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/obj/Debug/netcoreapp2.2/SearchStringInPath.csproj.CoreCompileInputs.cache
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/obj/Debug/netcoreapp2.2/SearchStringInPath.AssemblyInfoInputs.cache
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/obj/Debug/netcoreapp2.2/SearchStringInPath.AssemblyInfo.cs
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/obj/Debug/netcoreapp2.2/SearchStringInPath.dll
+/Users/diogo/Desktop/isel/pc/pc_series/concurrency-in-java/Series_no_3/SearchStringInPath/SearchStringInPath/obj/Debug/netcoreapp2.2/SearchStringInPath.pdb

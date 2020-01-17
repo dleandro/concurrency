@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,16 +19,23 @@ namespace SearchStringInPath
         private static void Main(string[] args)
         {
 
+            Console.WriteLine("Insert string");
+            var strToFind = Console.ReadLine();
+            
+            Console.WriteLine("Insert Path");
+
+            var pathToSearch = Console.ReadLine();
+            
+            Console.WriteLine("searching for {0} in {1}", strToFind, pathToSearch);
+            
             // loop through every directory enumerated including current directory and its sub directories
             // while looping check all files for desired string
-            var res = Parallel.ForEach(Directory.EnumerateDirectories(args[0], "*.*",
-                SearchOption.AllDirectories), directory => CheckAllFiles(args[1], directory));
-
-            while (!res.IsCompleted) ;
+            Parallel.ForEach(Directory.EnumerateDirectories(pathToSearch, "*.*",
+                SearchOption.AllDirectories), directory => CheckAllFiles(strToFind, directory));
             
             Console.WriteLine("Number of lines read: {0}", _readLinesCounter);
 
-            Console.WriteLine("Number of lines with the string {0}: {1}", args[1], _readLinesEqualToString);
+            Console.WriteLine("Number of lines with the string {0}: {1}", strToFind, _readLinesEqualToString);
 
             Console.WriteLine("Number of files read: {0}", _readFilesCounter);
         }
@@ -35,7 +43,7 @@ namespace SearchStringInPath
         private static void CheckAllFiles(string lineToFind, string currPath)
         {
             // Go through every file on the current directory
-            Parallel.ForEach(Directory.GetFiles(currPath), file =>
+            Parallel.ForEach(Directory.GetFiles(currPath, "*.txt"), file =>
             {
                 // increment number of files read
                 Interlocked.Increment(ref _readFilesCounter);

@@ -88,7 +88,7 @@ namespace WebServer
             }        
         }
 
-        public static Task<ServerObjects.Response> ExecuteShutdown(ServerObjects.Request request,
+        public static ServerObjects.Response ExecuteShutdown(ServerObjects.Request request,
             CancellationTokenSource cts)
         {
             // request cancellation
@@ -96,23 +96,20 @@ namespace WebServer
 
             if (Program.Shutdown)
             {
-                return Task.FromResult(new ServerObjects.Response {Status = (int) StatusCodes.OK});
+                return new ServerObjects.Response {Status = (int) StatusCodes.OK};
             }
-            
-            return new Task<ServerObjects.Response>(() =>
+        
+            var startTimeInMillis = DateTime.Now.Millisecond; 
+                
+            while (startTimeInMillis - DateTime.Now.Millisecond > 0)
             {
-                var startTimeInMillis = DateTime.Now.Millisecond; 
-                
-                while (startTimeInMillis - DateTime.Now.Millisecond > 0)
+                if (Program.Shutdown)
                 {
-                    if (Program.Shutdown)
-                    {
-                        return new ServerObjects.Response {Status = (int) StatusCodes.OK};
-                    }
+                    return new ServerObjects.Response {Status = (int) StatusCodes.OK};
                 }
+            }
                 
-                return new ServerObjects.Response {Status = (int) StatusCodes.SERVER_ERR};
-            });
+            return new ServerObjects.Response {Status = (int) StatusCodes.SERVER_ERR};
         }
     }
 }
